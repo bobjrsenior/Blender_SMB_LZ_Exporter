@@ -27,26 +27,34 @@ class SMBLZExporter(bpy.types.Operator):
     # the two files we want to select
     filepath = bpy.props.StringProperty(subtype='FILE_PATH')
     
+    startPositionObjects = []
     numCollisionFields = 0;
     collisionFieldsOffset = 0
+    collisionFields = []
     sizeOfHeader = 160
     falloutPlaneOffset = 0
     falloutPlaneY = 0
     numberOfGoals = 0
     goalsOffset = 0
+    goalObjects = []
     numberOfBumpers = 0
     bumpersOffset = 0
+    bumperObjects = []
     numberOfJamabars = 0
     jamabarOffset = 0
+    jamabarObjects = []
     numberOfBananas = 0
     bananasOffset = 0
+    bananaObjects = []
     numberOfLevelModels = 0
     levelModelsOffset = 0
+    levelModelObjects = []
     numberOfBackgroundModels = 0
     backgroundModelsOffset = 0
+    backgroundModelObjects = []
     numberOfReflectiveObjects = 0
     reflectiveObjectsOffset = 0
-    
+    reflectiveObjects = []
     
     filename_ext = ".lz"
     filter_glob = StringProperty(
@@ -59,23 +67,55 @@ class SMBLZExporter(bpy.types.Operator):
 
         # The original script
         scene = context.scene
-        #for obj in scene.objects:
+        print(dir(scene.objects[0]))
+        for obj in scene.objects:
+            if "start" in obj.name.lower():
+                self.startPositionObjects.append(obj)
+            elif "goal" in obj.name.lower():
+                self.goalObjects.append(obj)
+            elif "bumper" in obj.name.lower():
+                self.bumperObjects.append(obj)
+            elif "jamabar" in obj.name.lower():
+                self.jamabarObjects
+            elif "banana" in obj.name.lower():
+                self.bananaObjects.append(obj)
+            elif "background" in obj.name.lower():
+                self.backgroundModelObjects.append(obj)
+            elif "reflective" in obj.name.lower():
+                self.reflectiveObjects.append(obj)
+            else:
+                self.levelModelObjects.append(obj)
+            
         #    obj.location.x += 1.0
+        self.numberOfGoals = len(self.goalObjects)
+        print(self.goalObjects)
+        self.numberOfBumpers = len(self.bumperObjects)
+        self.numberOfJamabars = len(self.jamabarObjects)
+        self.numberOfBananas = len(self.bananaObjects)
+        self.numberOfLevelModels = len(self.levelModelObjects)
+        self.numberOfBackgroundModels = len(self.backgroundModelObjects)
+        self.numberOfReflectiveObjects = len(self.reflectiveObjects)
         self.writeLZ()
         return {'FINISHED'}            # this lets blender know the operator finished successfully.
         
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+        
+    def writeLZ(self):
+        """Save an SMB LZ File"""
+        with open(self.filepath, 'wb') as file:
+            self.writeStartPositions(file)
+            self.writeHeader(file)
     
     def writeZeroBytes(self, file, numZeros):
         byteArray = []
         for i in range(0, numZeros):
             byteArray.append(0)
-        print(bytes(byteArray))
         file.write(bytes(byteArray))
             
     def writeHeader(self, file):
+        file.seek(0, 0)
         self.writeZeroBytes(file, 8)
         file.write(self.toBigI(self.numCollisionFields))
         file.write(self.toBigI(self.collisionFieldsOffset))
@@ -84,7 +124,7 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigI(self.numberOfGoals))
         file.write(self.toBigI(self.goalsOffset))
         file.write(self.toBigI(self.numberOfGoals));
-        self.writeZeroBytes(file, 1)
+        self.writeZeroBytes(file, 4)
         file.write(self.toBigI(self.numberOfBumpers))
         file.write(self.toBigI(self.bumpersOffset))
         file.write(self.toBigI(self.numberOfJamabars))
@@ -104,14 +144,29 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigI(self.reflectiveObjectsOffset))
         self.writeZeroBytes(file, 30)
         
-            
-    def writeLZ(self):
-        """Save an SMB LZ File"""
-        with open(self.filepath, 'wb') as file:
-            self.writeHeader(file)
+    def writeStartPositions(self, file):
+        file.seek(self.sizeOfHeader, 0)
+        for obj in self.startPositionObjects:
+            file.write(self.toBigF(obj.location.x))
+            file.write(self.toBigF(obj.location.y))
+            file.write(self.toBigF(obj.location.z))
+            file.write(self.toShortI(obj.rotation_euler.x))
+            file.write(self.toShortI(obj.rotation_euler.y))
+            file.write(self.toShortI(obj.rotation_euler.z))
+            self.writeZeroBytes(file, 1)
+        self.goalsOffset = file.tell()
+        
+        
+
             
     def toBigI(self, number):
         return struct.pack('>I', number)
+        
+    def toBigF(self, number):
+        return struct.pack('>f', number)
+        
+    def toShortI(self, number):
+        return struct.pack('>H', int(number) & 0xFFFF)
             
 
 
