@@ -73,19 +73,20 @@ class SMBLZExporter(bpy.types.Operator):
         scene = context.scene
         print(dir(scene.objects[0]))
         for obj in scene.objects:
-            if "start" in obj.name.lower():
+            lowerName = obj.name.lower()
+            if "start" in lowerName:
                 self.startPositionObjects.append(obj)
-            elif "goal" in obj.name.lower():
+            elif "goal" in lowerName:
                 self.goalObjects.append(obj)
-            elif "bumper" in obj.name.lower():
+            elif "bumper" in lowerName:
                 self.bumperObjects.append(obj)
-            elif "jamabar" in obj.name.lower():
-                self.jamabarObjects
-            elif "banana" in obj.name.lower():
+            elif "jamabar" in lowerName:
+                self.jamabarObjects.append(obj)
+            elif "banana" in lowerName:
                 self.bananaObjects.append(obj)
-            elif "background" in obj.name.lower():
+            elif "background" in lowerName:
                 self.backgroundModelObjects.append(obj)
-            elif "reflective" in obj.name.lower():
+            elif "reflective" in lowerName:
                 self.reflectiveObjects.append(obj)
                 self.levelModelObjects.append(obj)
             else:
@@ -93,7 +94,7 @@ class SMBLZExporter(bpy.types.Operator):
             
         #    obj.location.x += 1.0
         self.numberOfGoals = len(self.goalObjects)
-        print(self.goalObjects)
+        print(len(self.jamabarObjects))
         self.numberOfBumpers = len(self.bumperObjects)
         self.numberOfJamabars = len(self.jamabarObjects)
         self.numberOfBananas = len(self.bananaObjects)
@@ -175,12 +176,15 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toShortI(obj.rotation_euler.x))
             file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
-            if "blue" in obj.name.lower():
-                file.write(self.toShortI(0x4200))
-            elif "green" in obj.name.lower():
-                file.write(self.toShortI(0x4700))
-            elif "red" in obj.name.lower():
+            lowerName = obj.name.lower()
+            if "red" in lowerName:
                 file.write(self.toShortI(0x5200))
+            elif "green" in lowerName:
+                file.write(self.toShortI(0x4700))
+            else:
+                file.write(self.toShortI(0x4200))
+            
+            
         self.bumpersOffset = file.tell()
         
     def writeBumpers(self, file):
@@ -192,7 +196,7 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toShortI(obj.rotation_euler.x))
             file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
-            writeZeroBytes(file, 2)
+            self.writeZeroBytes(file, 2)
             file.write(self.toBigF(obj.scale.x))
             file.write(self.toBigF(obj.scale.y))
             file.write(self.toBigF(obj.scale.z)) 
@@ -207,7 +211,7 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toShortI(obj.rotation_euler.x))
             file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
-            writeZeroBytes(file, 2)
+            self.writeZeroBytes(file, 2)
             file.write(self.toBigF(obj.scale.x))
             file.write(self.toBigF(obj.scale.y))
             file.write(self.toBigF(obj.scale.z)) 
@@ -221,21 +225,22 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.z))
             if "bunch" in obj.name.lower():
                 file.write(self.toBigI(1))
-            elif "single" in obj.name.lower() or "nanner" in obj.name.lower():
+            else:
                 file.write(self.toBigI(0))
         self.modelNamesOffset = file.tell()
         
     def writeobjectNames(self, file):
         file.seek(self.modelNamesOffset, 0)
-        for obj in self.levelModelNameOffsets:
-            levelModelNameOffsets.append(file.tell())
+        print(self.modelNamesOffset)
+        for obj in self.levelModelObjects:
+            self.levelModelNameOffsets.append(file.tell())
             nameBytes = bytearray()
-            nameBytes.extends(obj.name.encode())
+            nameBytes.extend(obj.name.encode())
             file.write(nameBytes)
         for obj in self.backgroundModelObjects:
-            backgroundModelNameOffsets.append(file.tell())
+            self.backgroundModelNameOffsets.append(file.tell())
             nameBytes = bytearray()
-            nameBytes.extends(obj.name.encode())
+            nameBytes.extend(obj.name.encode())
             file.write(nameBytes)
         self.collisionFieldsOffset = file.tell()
             
