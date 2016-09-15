@@ -49,12 +49,16 @@ class SMBLZExporter(bpy.types.Operator):
     numberOfLevelModels = 0
     levelModelsOffset = 0
     levelModelObjects = []
+    levelModelNameOffsets = []
     numberOfBackgroundModels = 0
     backgroundModelsOffset = 0
     backgroundModelObjects = []
+    backgroundModelNameOffsets = []
     numberOfReflectiveObjects = 0
     reflectiveObjectsOffset = 0
     reflectiveObjects = []
+    
+    modelNamesOffset = 0
     
     filename_ext = ".lz"
     filter_glob = StringProperty(
@@ -83,6 +87,7 @@ class SMBLZExporter(bpy.types.Operator):
                 self.backgroundModelObjects.append(obj)
             elif "reflective" in obj.name.lower():
                 self.reflectiveObjects.append(obj)
+                self.levelModelObjects.append(obj)
             else:
                 self.levelModelObjects.append(obj)
             
@@ -106,6 +111,11 @@ class SMBLZExporter(bpy.types.Operator):
         """Save an SMB LZ File"""
         with open(self.filepath, 'wb') as file:
             self.writeStartPositions(file)
+            self.writeGoals(file)
+            self.writeBumpers(file)
+            self.writeJamabars(file)
+            self.writeBananas(file)
+            self.writeobjectNames(file)
             self.writeHeader(file)
     
     def writeZeroBytes(self, file, numZeros):
@@ -153,11 +163,81 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toShortI(obj.rotation_euler.x))
             file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
-            self.writeZeroBytes(file, 1)
+            self.writeZeroBytes(file, 2)
         self.goalsOffset = file.tell()
         
+    def writeGoals(self, file):
+        file.seek(self.goalsOffset, 0)
+        for obj in self.goalObjects:
+            file.write(self.toBigF(obj.location.x))
+            file.write(self.toBigF(obj.location.y))
+            file.write(self.toBigF(obj.location.z))
+            file.write(self.toShortI(obj.rotation_euler.x))
+            file.write(self.toShortI(obj.rotation_euler.y))
+            file.write(self.toShortI(obj.rotation_euler.z))
+            if "blue" in obj.name.lower():
+                file.write(self.toShortI(0x4200))
+            elif "green" in obj.name.lower():
+                file.write(self.toShortI(0x4700))
+            elif "red" in obj.name.lower():
+                file.write(self.toShortI(0x5200))
+        self.bumpersOffset = file.tell()
         
-
+    def writeBumpers(self, file):
+        file.seek(self.bumpersOffset, 0)
+        for obj in self.goalObjects:
+            file.write(self.toBigF(obj.location.x))
+            file.write(self.toBigF(obj.location.y))
+            file.write(self.toBigF(obj.location.z))
+            file.write(self.toShortI(obj.rotation_euler.x))
+            file.write(self.toShortI(obj.rotation_euler.y))
+            file.write(self.toShortI(obj.rotation_euler.z))
+            writeZeroBytes(file, 2)
+            file.write(self.toBigF(obj.scale.x))
+            file.write(self.toBigF(obj.scale.y))
+            file.write(self.toBigF(obj.scale.z)) 
+        self.jamabarOffset = file.tell()
+        
+    def writeJamabars(self, file):
+        file.seek(self.jamabarOffset, 0)
+        for obj in self.goalObjects:
+            file.write(self.toBigF(obj.location.x))
+            file.write(self.toBigF(obj.location.y))
+            file.write(self.toBigF(obj.location.z))
+            file.write(self.toShortI(obj.rotation_euler.x))
+            file.write(self.toShortI(obj.rotation_euler.y))
+            file.write(self.toShortI(obj.rotation_euler.z))
+            writeZeroBytes(file, 2)
+            file.write(self.toBigF(obj.scale.x))
+            file.write(self.toBigF(obj.scale.y))
+            file.write(self.toBigF(obj.scale.z)) 
+        self.bananasOffset = file.tell()
+        
+    def writeBananas(self, file):
+        file.seek(self.bananasOffset, 0)
+        for obj in self.goalObjects:
+            file.write(self.toBigF(obj.location.x))
+            file.write(self.toBigF(obj.location.y))
+            file.write(self.toBigF(obj.location.z))
+            if "bunch" in obj.name.lower():
+                file.write(self.toBigI(1))
+            elif "single" in obj.name.lower() or "nanner" in obj.name.lower():
+                file.write(self.toBigI(0))
+        self.modelNamesOffset = file.tell()
+        
+    def writeobjectNames(self, file):
+        file.seek(self.modelNamesOffset, 0)
+        for obj in self.levelModelNameOffsets:
+            levelModelNameOffsets.append(file.tell())
+            nameBytes = bytearray()
+            nameBytes.extends(obj.name.encode())
+            file.write(nameBytes)
+        for obj in self.backgroundModelObjects:
+            backgroundModelNameOffsets.append(file.tell())
+            nameBytes = bytearray()
+            nameBytes.extends(obj.name.encode())
+            file.write(nameBytes)
+        self.collisionFieldsOffset = file.tell()
             
     def toBigI(self, number):
         return struct.pack('>I', number)
