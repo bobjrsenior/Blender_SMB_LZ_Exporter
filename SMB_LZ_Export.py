@@ -51,26 +51,28 @@ class SMBLZExporter(bpy.types.Operator):
     levelModelObjects = []
     levelModelNameOffsets = []
     levelModelNamePointerOffsets = []
-	levelModelAnimationFrameOffsets = []
-	levelModelTriangleOffsets = []
-	levelModelCollisionGridPointers = []
+    levelModelAnimationFrameOffsets = []
+    levelModelTriangleOffsets = []
+    levelModelCollisionGridPointers = []
+    numberOfLevelModelTriangles = []
     numberOfBackgroundModels = 0
     backgroundModelsOffset = 0
     backgroundModelObjects = []
     backgroundModelNameOffsets = []
     backgroundModelNamePointerOffsets = []
-	backgroundModelAnimationFrameOffsets = []
-	backgroundModelTriangleOffsets = []
-	backgroundModelCollisionGridPointers = []
+    backgroundModelAnimationFrameOffsets = []
+    backgroundModelTriangleOffsets = []
+    backgroundModelCollisionGridPointers = []
+    numberOfBackgoundModelTriangles = []
     numberOfReflectiveObjects = 0
     reflectiveObjectsOffset = 0
     reflectiveObjects = []
     reflectiveObjectNameOffsets = []
     reflectiveObjectNamePointerOffsets = []
-	reflectiveObjectAnimationFrameOffsets = []
-	reflectiveObjectTriangleOffsets = []
-	reflectiveObjectCollisionGridPointers = []
-    
+    reflectiveObjectAnimationFrameOffsets = []
+    reflectiveObjectTriangleOffsets = []
+    reflectiveObjectCollisionGridPointers = []
+    numberOfReflectiveObjectTriangles = []
     modelNamesOffset = 0
     
     filename_ext = ".lz"
@@ -84,7 +86,7 @@ class SMBLZExporter(bpy.types.Operator):
 
         # The original script
         scene = context.scene
-        print(dir(scene.objects[0]))
+        #print(dir(scene.objects[0]))
         for obj in scene.objects:
             lowerName = obj.name.lower()
             if "start" in lowerName:
@@ -114,14 +116,14 @@ class SMBLZExporter(bpy.types.Operator):
         self.numberOfLevelModels = len(self.levelModelObjects)
         self.numberOfBackgroundModels = len(self.backgroundModelObjects)
         self.numberOfReflectiveObjects = len(self.reflectiveObjects)
-        self.writeLZ()
+        self.writeLZ(context)
         return {'FINISHED'}            # this lets blender know the operator finished successfully.
         
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
         
-    def writeLZ(self):
+    def writeLZ(self, context):
         """Save an SMB LZ File"""
         with open(self.filepath, 'wb') as file:
             self.writeStartPositions(file)
@@ -131,6 +133,7 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeBananas(file)
             self.writeobjectNames(file)
             self.writeLevelModels(file)
+            self.writeCollisionTriangles(file, context)
             self.writeHeader(file)
     
     def writeZeroBytes(self, file, numZeros):
@@ -267,15 +270,15 @@ class SMBLZExporter(bpy.types.Operator):
         self.levelModelsOffset = file.tell()
         
     def writeLevelModels(self, file):
-		# Level Models
+        # Level Models
         file.seek(self.levelModelsOffset, 0)
         for i in range(0, len(self.levelModelNameOffsets)):
             file.write(self.toBigI(1))
             self.levelModelNamePointerOffsets.append(file.tell())
             file.write(self.toBigI(self.levelModelNameOffsets[i]))
             file.write(self.toBigI(0))
-			
-		# Background Models
+            
+        # Background Models
         self.backgroundModelsOffset = file.tell()
         for i in range(0, len(self.backgroundModelNameOffsets)):
             file.write(self.toBigI(1))
@@ -283,16 +286,31 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigI(self.backgroundModelNameOffsets[i]))
             file.write(self.toBigI(0))
         
-		# Reflective Models
+        # Reflective Models
         self.reflectiveObjectsOffset = file.tell()
         for i in range(0, len(self.reflectiveObjectNameOffsets)):
             file.write(self.toBigI(1))
             self.reflectiveObjectNamePointerOffsets.append(file.tell())
             file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))
             file.write(self.toBigI(0))
-			
-		self.collisionFieldsOffset = file.tell()
-	
+            
+    def writeCollisionTriangles(self, file, context):
+        # Level Models
+        for i in range(0, len(self.levelModelObjects)):
+			break
+            self.levelModelTriangleOffsets.append(file.tell())
+            obj = self.duplicateObject(self.levelModelObjects[i])
+            self.triangulate_object(obj)
+            
+            
+        # Background Models
+        for i in range(0, len(self.backgroundModelObjects)):
+            break
+        
+        # Reflective Models
+        for i in range(0, len(self.reflectiveObjects)):
+            break
+            
     def toBigI(self, number):
         return struct.pack('>I', number)
         
@@ -301,8 +319,26 @@ class SMBLZExporter(bpy.types.Operator):
         
     def toShortI(self, number):
         return struct.pack('>H', int(number) & 0xFFFF)
+        
+    def duplicateObject(self, object):
+        from mathutils import Vector
+        copy = object.copy()
+        copy.location += Vector((0, 0, 0))
+        copy.data = copy.data.copy()
+        return copy
             
+    def triangulate_object(self, obj):
+        import bmesh
+        me = obj.data
+        # Get a BMesh representation
+        bm = bmesh.new()
+        bm.from_mesh(me)
 
+        bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method=0, ngon_method=0)
+
+        # Finish up, write the bmesh back to the mesh
+        bm.to_mesh(me)
+        bm.free()
 
 def menu_func_export(self, context):
     self.layout.operator(SMBLZExporter.bl_idname, text="SMB LZ (.lz)")
