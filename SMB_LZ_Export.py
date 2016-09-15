@@ -50,13 +50,26 @@ class SMBLZExporter(bpy.types.Operator):
     levelModelsOffset = 0
     levelModelObjects = []
     levelModelNameOffsets = []
+    levelModelNamePointerOffsets = []
+	levelModelAnimationFrameOffsets = []
+	levelModelTriangleOffsets = []
+	levelModelCollisionGridPointers = []
     numberOfBackgroundModels = 0
     backgroundModelsOffset = 0
     backgroundModelObjects = []
     backgroundModelNameOffsets = []
+    backgroundModelNamePointerOffsets = []
+	backgroundModelAnimationFrameOffsets = []
+	backgroundModelTriangleOffsets = []
+	backgroundModelCollisionGridPointers = []
     numberOfReflectiveObjects = 0
     reflectiveObjectsOffset = 0
     reflectiveObjects = []
+    reflectiveObjectNameOffsets = []
+    reflectiveObjectNamePointerOffsets = []
+	reflectiveObjectAnimationFrameOffsets = []
+	reflectiveObjectTriangleOffsets = []
+	reflectiveObjectCollisionGridPointers = []
     
     modelNamesOffset = 0
     
@@ -117,6 +130,7 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeJamabars(file)
             self.writeBananas(file)
             self.writeobjectNames(file)
+            self.writeLevelModels(file)
             self.writeHeader(file)
     
     def writeZeroBytes(self, file, numZeros):
@@ -127,43 +141,46 @@ class SMBLZExporter(bpy.types.Operator):
             
     def writeHeader(self, file):
         file.seek(0, 0)
-        self.writeZeroBytes(file, 8)
-        file.write(self.toBigI(self.numCollisionFields))
-        file.write(self.toBigI(self.collisionFieldsOffset))
-        file.write(self.toBigI(160))
-        file.write(self.toBigI(self.falloutPlaneOffset))
-        file.write(self.toBigI(self.numberOfGoals))
-        file.write(self.toBigI(self.goalsOffset))
-        file.write(self.toBigI(self.numberOfGoals));
-        self.writeZeroBytes(file, 4)
-        file.write(self.toBigI(self.numberOfBumpers))
-        file.write(self.toBigI(self.bumpersOffset))
-        file.write(self.toBigI(self.numberOfJamabars))
-        file.write(self.toBigI(self.jamabarOffset))
-        file.write(self.toBigI(self.numberOfBananas))
-        file.write(self.toBigI(self.bananasOffset))
-        self.writeZeroBytes(file, 10)
-        self.writeZeroBytes(file, 8)
-        file.write(self.toBigI(self.numberOfLevelModels))
-        file.write(self.toBigI(self.levelModelsOffset))
-        self.writeZeroBytes(file, 8)
-        file.write(self.toBigI(self.numberOfBackgroundModels))
-        file.write(self.toBigI(self.backgroundModelsOffset))
-        self.writeZeroBytes(file, 8)
-        self.writeZeroBytes(file, 8)
-        file.write(self.toBigI(self.numberOfReflectiveObjects))
-        file.write(self.toBigI(self.reflectiveObjectsOffset))
-        self.writeZeroBytes(file, 30)
+        self.writeZeroBytes(file, 8)                            # Unknown
+        file.write(self.toBigI(self.numCollisionFields))        # Number of collision fields
+        file.write(self.toBigI(self.collisionFieldsOffset))     # Offset to to collision fields
+        file.write(self.toBigI(160))                            # Size of head/offset to start position (always 0xA0)
+        file.write(self.toBigI(self.falloutPlaneOffset))        # Offset to fallout plane Y coordinate
+        file.write(self.toBigI(self.numberOfGoals))             # Number of goals
+        file.write(self.toBigI(self.goalsOffset))               # Offset to goals
+        file.write(self.toBigI(self.numberOfGoals));            # Number of goals
+        self.writeZeroBytes(file, 4)                            # Zero
+        file.write(self.toBigI(self.numberOfBumpers))           # Number of bumpers
+        file.write(self.toBigI(self.bumpersOffset))             # Offset to bumpers
+        file.write(self.toBigI(self.numberOfJamabars))          # Number of jamabars
+        file.write(self.toBigI(self.jamabarOffset))             # Offset to jamabars
+        file.write(self.toBigI(self.numberOfBananas))           # Number of bananas
+        file.write(self.toBigI(self.bananasOffset))             # Offset to bananas
+        self.writeZeroBytes(file, 10)                           # Zero
+        file.write(self.toBigI(0))                              # Number of something?
+        file.write(self.toBigI(0))                              # Offset to something?
+        file.write(self.toBigI(self.numberOfLevelModels))       # Number of level models
+        file.write(self.toBigI(self.levelModelsOffset))         # Offset to level models
+        self.writeZeroBytes(file, 8)                            # Zero
+        file.write(self.toBigI(self.numberOfBackgroundModels))  # Number of background models
+        file.write(self.toBigI(self.backgroundModelsOffset))    # Offset to background models
+        file.write(self.toBigI(0))                              # Number of something?
+        file.write(self.toBigI(0))                              # Offset to something
+        file.write(self.toBigI(0))                              # Zero
+        file.write(self.toBigI(1))                              # One
+        file.write(self.toBigI(self.numberOfReflectiveObjects)) # Number of reflective objects
+        file.write(self.toBigI(self.reflectiveObjectsOffset))   # Offset to reflective objects
+        self.writeZeroBytes(file, 30)                           # Unknown
         
     def writeStartPositions(self, file):
         file.seek(self.sizeOfHeader, 0)
         for obj in self.startPositionObjects:
             file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.y))
             file.write(self.toBigF(obj.location.z))
+            file.write(self.toBigF(obj.location.y))
             file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
+            file.write(self.toShortI(obj.rotation_euler.y))
             self.writeZeroBytes(file, 2)
         self.goalsOffset = file.tell()
         
@@ -171,11 +188,11 @@ class SMBLZExporter(bpy.types.Operator):
         file.seek(self.goalsOffset, 0)
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.y))
             file.write(self.toBigF(obj.location.z))
+            file.write(self.toBigF(obj.location.y))
             file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
+            file.write(self.toShortI(obj.rotation_euler.y))
             lowerName = obj.name.lower()
             if "red" in lowerName:
                 file.write(self.toShortI(0x5200))
@@ -191,38 +208,38 @@ class SMBLZExporter(bpy.types.Operator):
         file.seek(self.bumpersOffset, 0)
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.y))
             file.write(self.toBigF(obj.location.z))
+            file.write(self.toBigF(obj.location.y))
             file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
+            file.write(self.toShortI(obj.rotation_euler.y))
             self.writeZeroBytes(file, 2)
             file.write(self.toBigF(obj.scale.x))
-            file.write(self.toBigF(obj.scale.y))
-            file.write(self.toBigF(obj.scale.z)) 
+            file.write(self.toBigF(obj.scale.z))
+            file.write(self.toBigF(obj.scale.y)) 
         self.jamabarOffset = file.tell()
         
     def writeJamabars(self, file):
         file.seek(self.jamabarOffset, 0)
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.y))
             file.write(self.toBigF(obj.location.z))
+            file.write(self.toBigF(obj.location.y))
             file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.y))
             file.write(self.toShortI(obj.rotation_euler.z))
+            file.write(self.toShortI(obj.rotation_euler.y))
             self.writeZeroBytes(file, 2)
             file.write(self.toBigF(obj.scale.x))
-            file.write(self.toBigF(obj.scale.y))
-            file.write(self.toBigF(obj.scale.z)) 
+            file.write(self.toBigF(obj.scale.z))
+            file.write(self.toBigF(obj.scale.y)) 
         self.bananasOffset = file.tell()
         
     def writeBananas(self, file):
         file.seek(self.bananasOffset, 0)
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.y))
             file.write(self.toBigF(obj.location.z))
+            file.write(self.toBigF(obj.location.y))
             if "bunch" in obj.name.lower():
                 file.write(self.toBigI(1))
             else:
@@ -242,8 +259,40 @@ class SMBLZExporter(bpy.types.Operator):
             nameBytes = bytearray()
             nameBytes.extend(obj.name.encode())
             file.write(nameBytes)
-        self.collisionFieldsOffset = file.tell()
-            
+        for obj in self.reflectiveObjects:
+            self.reflectiveObjectNameOffsets.append(file.tell())
+            nameBytes = bytearray()
+            nameBytes.extend(obj.name.encode())
+            file.write(nameBytes)
+        self.levelModelsOffset = file.tell()
+        
+    def writeLevelModels(self, file):
+		# Level Models
+        file.seek(self.levelModelsOffset, 0)
+        for i in range(0, len(self.levelModelNameOffsets)):
+            file.write(self.toBigI(1))
+            self.levelModelNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.levelModelNameOffsets[i]))
+            file.write(self.toBigI(0))
+			
+		# Background Models
+        self.backgroundModelsOffset = file.tell()
+        for i in range(0, len(self.backgroundModelNameOffsets)):
+            file.write(self.toBigI(1))
+            self.backgroundModelNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.backgroundModelNameOffsets[i]))
+            file.write(self.toBigI(0))
+        
+		# Reflective Models
+        self.reflectiveObjectsOffset = file.tell()
+        for i in range(0, len(self.reflectiveObjectNameOffsets)):
+            file.write(self.toBigI(1))
+            self.reflectiveObjectNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))
+            file.write(self.toBigI(0))
+			
+		self.collisionFieldsOffset = file.tell()
+	
     def toBigI(self, number):
         return struct.pack('>I', number)
         
