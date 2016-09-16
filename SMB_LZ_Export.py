@@ -10,6 +10,7 @@ import mathutils
 import bpy_extras.io_utils
 import struct
 from array import array
+import math
 
 from bpy.props import (
         BoolProperty,
@@ -103,13 +104,11 @@ class SMBLZExporter(bpy.types.Operator):
                 self.backgroundModelObjects.append(obj)
             elif "reflective" in lowerName:
                 self.reflectiveObjects.append(obj)
-                self.levelModelObjects.append(obj)
             else:
                 self.levelModelObjects.append(obj)
             
         #    obj.location.x += 1.0
         self.numberOfGoals = len(self.goalObjects)
-        print(len(self.jamabarObjects))
         self.numberOfBumpers = len(self.bumperObjects)
         self.numberOfJamabars = len(self.jamabarObjects)
         self.numberOfBananas = len(self.bananaObjects)
@@ -251,7 +250,6 @@ class SMBLZExporter(bpy.types.Operator):
         
     def writeobjectNames(self, file):
         file.seek(self.modelNamesOffset, 0)
-        print(self.modelNamesOffset)
         for obj in self.levelModelObjects:
             self.levelModelNameOffsets.append(file.tell())
             nameBytes = bytearray()
@@ -295,37 +293,49 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigI(0))
             
     def writeCollisionTriangles(self, file, context):
+        from mathutils import Vector
         # Level Models
         for i in range(0, len(self.levelModelObjects)):
-            
             self.levelModelTriangleOffsets.append(file.tell())
             obj = self.duplicateObject(self.levelModelObjects[i])
             self.triangulate_object(obj)
-            for i in range(0, obj.data.vertices, 3):
-                vertex = obj.data.vertices[i]
-                temp = vertex[1]
-                vertex[1] = vertex[2]
-                vertex[2] = temp
-                if i % 3 == 0:
-                    vertex2 = obj.data.vertices[i + 1]
-                    vertex3 = obj.data.vertices[i + 2]
-                elif i % 3 == 1:
-                    vertex2 = obj.data.vertices[i + 1]
-                    vertex3 = obj.data.vertices[i - 1]
-                else:
-                    vertex2 = obj.data.vertices[i - 2]
-                    vertex3 = obj.data.vertices[i - 1]
-                temp = vertex2[1]
-                vertex2[1] = vertex2[2]
-                vertex2[2] = temp
-                temp = vertex3[1]
-                vertex3[1] = vertex3[2]
-                vertex3[2] = temp
-                ba = Vector((vector2.x - vector.x, vector2.y - vector.y, vector2.z - vector.z))
-                ca = Vector((vector3.x - vector.x, vector3.y - vector.y, vector3.z - vector.z))
-                
-                
+            for face in obj.data.polygons:
+                vertices = []
+                for vert in face.vertices:
+                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
             
+        # Background Models
+        for i in range(0, len(self.backgroundModelObjects)):
+            self.backgroundModelTriangleOffsets.append(file.tell())
+            obj = self.duplicateObject(self.backgroundModelObjects[i])
+            self.triangulate_object(obj)
+            for face in obj.data.polygons:
+                vertices = []
+                for vert in face.vertices:
+                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
+        
+        # Reflective Models
+        for i in range(0, len(self.reflectiveObjects)):
+            self.reflectiveObjectTriangleOffsets.append(file.tell())
+            obj = self.duplicateObject(self.reflectiveObjects[i])
+            self.triangulate_object(obj)
+            for face in obj.data.polygons:
+                vertices = []
+                for vert in face.vertices:
+                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
+                
+    def writeCollisionFields(self, file):
+    
+        self.collisionFieldsOffset = file.tell()
+        
+        # Level Models
+        for i in range(0, len(self.levelModelObjects)):
+            obj = self.levelModelObjects[i]
+            file.write(self.toBigF(obj.location[0]))
+            #file.write
             
         # Background Models
         for i in range(0, len(self.backgroundModelObjects)):
@@ -345,17 +355,60 @@ class SMBLZExporter(bpy.types.Operator):
         return struct.pack('>H', int(number) & 0xFFFF)
         
     def cross(self, a, b):
-        return Vector((a[1] * b[2]) - (a[2] * b[1]),
+        from mathutils import Vector
+        return Vector(((a[1] * b[2]) - (a[2] * b[1]),
                       (a[2] * b[0]) - (a[0] * b[1]),
-                      (a[0] * b[1]) - (a[1] * b[0])
+                      (a[0] * b[1]) - (a[1] * b[0])))
                       
     def dot(self, a, b):
         return (a[0] * b[0]) + (a[1] * b[1]) + (a[2] + b[2])
         
+    def dotm(self, a, r0, r1, r2):
+        from mathutils import Vector
+        return Vector(((a[0] * r0[0]) + (a[1] * r1[0]) + (a[2] * r2[0]),
+                      (a[0] * r0[1]) + (a[1] * r1[1]) + (a[2] * r2[1]),
+                      (a[0] * r0[2]) + (a[1] * r1[2]) + (a[2] * r2[2])))
+        
     def normalize(self, v):
+        from mathutils import Vector
         magnitude = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
-        return Vector(v[0] / magnitude, v[1] / magnitude, v[2] / magnitude)
+        if magnitude == 0:
+            return Vector((0, 0, 0))
+        return Vector((v[0] / magnitude, v[1] / magnitude, v[2] / magnitude))
       
+    def hat(self, v):
+        from mathutils import Vector
+        return Vector((-v[1], v[0], 0.0))
+        
+    def toDegrees(self, theta):
+        return 57.2957795130824*theta
+        
+    def cnvAngle(self, theta):
+        return int(65536.0 * theta / 360.0)
+        
+    def reverse_angle(self, c, s):
+        if c > 1.0:
+            c = 1.0
+        elif c < -1.0:
+            c = -1.0
+        if s > 1.0:
+            s = 1.0
+        elif s < -1.0:
+            s = -1.0
+        if abs(c) < abs(s):
+            a = self.toDegrees(math.acos(c))
+            if s < 0.0:
+                a = -a
+        else:
+            a = self.toDegrees(math.asin(s))
+            if c < 0.0:
+                a = 180.0 - a
+        if a < 0.0:
+            if a > -0.001:
+                a = 0.0
+            else:
+                a += 360.0
+        return a
     
     def duplicateObject(self, object):
         from mathutils import Vector
@@ -376,6 +429,79 @@ class SMBLZExporter(bpy.types.Operator):
         # Finish up, write the bmesh back to the mesh
         bm.to_mesh(me)
         bm.free()
+        
+    def writeTriangle(self, file, vertex, vertex2, vertex3):
+        from mathutils import Vector
+        # Swap Y and Z positions (Blender has Z being up instead of Y)
+        temp = vertex[1]
+        vertex[1] = vertex[2]
+        vertex[2] = temp
+        temp = vertex2[1]
+        vertex2[1] = vertex2[2]
+        vertex2[2] = temp
+        temp = vertex3[1]
+        vertex3[1] = vertex3[2]
+        vertex3[2] = temp
+        ba = Vector(((vertex2.x - vertex.x, vertex2.y - vertex.y, vertex2.z - vertex.z)))
+        ca = Vector(((vertex3.x - vertex.x, vertex3.y - vertex.y, vertex3.z - vertex.z)))
+        
+        normal = self.normalize(self.cross(self.normalize(ba), self.normalize(ca)))
+        l = math.sqrt(normal[0] * normal[0] + normal[2] * normal[2])
+
+        if abs(l) < 0.001:
+            cy = 1.0
+            sy = 0.0
+        else:
+            cy = normal[2] / l
+            sy = -normal[0] / l
+        cx = l
+        sx = normal[1]
+        
+        Rxr0 = Vector((1.0, 0.0, 0.0))
+        Rxr1 = Vector((0.0, cx, sx))
+        Rxr2 = Vector((0.0, -sx, cx))
+        Ryr0 = Vector((cy, 0.0, -sy))
+        Ryr1 = Vector((0.0, 1.0, 0.0))
+        Ryr2 = Vector((sy, 0.0, cy))
+        dotry = self.dotm(ba, Ryr0, Ryr1, Ryr2)
+        dotrxry = self.dotm(dotry, Rxr0, Rxr1, Rxr2)
+        l = math.sqrt(dotrxry[0] * dotrxry[0] + dotrxry[2] * dotrxry[1])
+        cz = dotrxry[0] / l
+        sz = -dotrxry[1] / l
+        Rzr0 = Vector((cz, sz, 0.0))
+        Rzr1 = Vector((-sz, cz, 0.0))
+        Rzr2 = Vector((0.0, 0.0, 1.0))
+        dotrz = self.dotm(dotrxry, Rzr0, Rzr1, Rzr2)
+        dotry = self.dotm(ca, Ryr0, Ryr1, Ryr2)
+        dotrzrxry = self.dotm(dotrxry, Rzr0, Rzr1, Rzr2)
+        
+        n0v = Vector((dotrzrxry[0] - dotrz[0], dotrzrxry[1] - dotrz[1], dotrzrxry[2] - dotrz[2]))
+        n1v = Vector((-dotrzrxry[1], -dotrzrxry[1], -dotrzrxry[2]))
+        n0 = self.normalize(self.hat(n0v))
+        n1 = self.normalize(self.hat(n1v))
+        
+        rot_x = 360.0 - self.reverse_angle(cx, sx)
+        rot_y = 360.0 - self.reverse_angle(cy, sy)
+        rot_z = 360.0 - self.reverse_angle(cz, sz)
+        
+        file.write(self.toBigF(vertex[0]))
+        file.write(self.toBigF(vertex[1]))
+        file.write(self.toBigF(vertex[2]))
+        file.write(self.toBigF(normal[0]))
+        file.write(self.toBigF(normal[1]))
+        file.write(self.toBigF(normal[2]))
+        file.write(self.toShortI(self.cnvAngle(rot_x)))
+        file.write(self.toShortI(self.cnvAngle(rot_y)))
+        file.write(self.toShortI(self.cnvAngle(rot_z)))
+        self.writeZeroBytes(file, 2)
+        file.write(self.toBigF(dotrz[0]))
+        file.write(self.toBigF(dotrz[1]))
+        file.write(self.toBigF(dotrzrxry[0]))
+        file.write(self.toBigF(dotrzrxry[1]))
+        file.write(self.toBigF(n0[0]))
+        file.write(self.toBigF(n0[1]))
+        file.write(self.toBigF(n1[0]))
+        file.write(self.toBigF(n1[1]))
 
 def menu_func_export(self, context):
     self.layout.operator(SMBLZExporter.bl_idname, text="SMB LZ (.lz)")
