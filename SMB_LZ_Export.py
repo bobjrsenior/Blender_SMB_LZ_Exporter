@@ -297,10 +297,34 @@ class SMBLZExporter(bpy.types.Operator):
     def writeCollisionTriangles(self, file, context):
         # Level Models
         for i in range(0, len(self.levelModelObjects)):
-			break
+            
             self.levelModelTriangleOffsets.append(file.tell())
             obj = self.duplicateObject(self.levelModelObjects[i])
             self.triangulate_object(obj)
+            for i in range(0, obj.data.vertices, 3):
+                vertex = obj.data.vertices[i]
+                temp = vertex[1]
+                vertex[1] = vertex[2]
+                vertex[2] = temp
+                if i % 3 == 0:
+                    vertex2 = obj.data.vertices[i + 1]
+                    vertex3 = obj.data.vertices[i + 2]
+                elif i % 3 == 1:
+                    vertex2 = obj.data.vertices[i + 1]
+                    vertex3 = obj.data.vertices[i - 1]
+                else:
+                    vertex2 = obj.data.vertices[i - 2]
+                    vertex3 = obj.data.vertices[i - 1]
+                temp = vertex2[1]
+                vertex2[1] = vertex2[2]
+                vertex2[2] = temp
+                temp = vertex3[1]
+                vertex3[1] = vertex3[2]
+                vertex3[2] = temp
+                ba = Vector((vector2.x - vector.x, vector2.y - vector.y, vector2.z - vector.z))
+                ca = Vector((vector3.x - vector.x, vector3.y - vector.y, vector3.z - vector.z))
+                
+                
             
             
         # Background Models
@@ -320,6 +344,19 @@ class SMBLZExporter(bpy.types.Operator):
     def toShortI(self, number):
         return struct.pack('>H', int(number) & 0xFFFF)
         
+    def cross(self, a, b):
+        return Vector((a[1] * b[2]) - (a[2] * b[1]),
+                      (a[2] * b[0]) - (a[0] * b[1]),
+                      (a[0] * b[1]) - (a[1] * b[0])
+                      
+    def dot(self, a, b):
+        return (a[0] * b[0]) + (a[1] * b[1]) + (a[2] + b[2])
+        
+    def normalize(self, v):
+        magnitude = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+        return Vector(v[0] / magnitude, v[1] / magnitude, v[2] / magnitude)
+      
+    
     def duplicateObject(self, object):
         from mathutils import Vector
         copy = object.copy()
