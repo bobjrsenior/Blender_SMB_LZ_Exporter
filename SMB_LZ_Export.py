@@ -138,6 +138,7 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeBackgroundModels(file)
             self.writeCollisionTriangles(file, context)
             self.writeCollisionGridTriangleList(file)
+            self.writeAnimationFrameHeaders(file)
             self.writeHeader(file)
     
     def writeZeroBytes(self, file, numZeros):
@@ -445,6 +446,32 @@ class SMBLZExporter(bpy.types.Operator):
                 file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
             file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
         
+    def writeAnimationFrameHeaders(self, file):
+        """Writes a stub of animation frame headers for objects"""
+        
+        # Go through every standard level model and write its collision grid list
+        for i in range(0, len(self.levelModelObjects)):
+            self.levelModelAnimationFrameOffsets.append(file.tell())
+            # Writing stub with 0 animation frames for now
+            file.write(self.toBigI(0))                          # (4i) Number of X frames
+            file.write(self.toBigI(0))                          # (4i) Offset to X frames
+            file.write(self.toBigI(0))                          # (4i) Number of Y frames
+            file.write(self.toBigI(0))                          # (4i) Offset to Y frames
+            file.write(self.toBigI(0))                          # (4i) Number of Z frames
+            file.write(self.toBigI(0))                          # (4i) Offset to Z frames
+            self.writeZeroBytes(file, 18)                       # (18i) Zero
+            
+        # Go through every reflective level model and write its collision grid list
+        for i in range(0, len(self.reflectiveObjects)):
+            self.reflectiveObjectAnimationFrameOffsets.append(file.tell())
+            # Writing stub with 0 animation frames for now
+            file.write(self.toBigI(0))                          # (4i) Number of X frames
+            file.write(self.toBigI(0))                          # (4i) Offset to X frames
+            file.write(self.toBigI(0))                          # (4i) Number of Y frames
+            file.write(self.toBigI(0))                          # (4i) Offset to Y frames
+            file.write(self.toBigI(0))                          # (4i) Number of Z frames
+            file.write(self.toBigI(0))                          # (4i) Offset to Z frames
+            self.writeZeroBytes(file, 18)                       # (18i) Zero
             
     def writeCollisionFields(self, file):
         """Write the collision field headers into the LZ"""
