@@ -3,7 +3,6 @@ bl_info = {
     "category": "Import-Export",
     "description": "Exports to the SMB LZ format",
     "version": (0, 0, 1)}
-
 import os    
 import bpy
 import mathutils
@@ -84,10 +83,10 @@ class SMBLZExporter(bpy.types.Operator):
 
 
     def execute(self, context):        # execute() is called by blender when running the operator.
-
-        # The original script
+        """Called when the addon is run after selecting a save file"""
+        
         scene = context.scene
-        #print(dir(scene.objects[0]))
+        # Go through each object in the scene and put it into its related list
         for obj in scene.objects:
             lowerName = obj.name.lower()
             if "start" in lowerName:
@@ -107,7 +106,7 @@ class SMBLZExporter(bpy.types.Operator):
             else:
                 self.levelModelObjects.append(obj)
             
-        #    obj.location.x += 1.0
+        # Get the length of each list for the file header
         self.numberOfGoals = len(self.goalObjects)
         self.numberOfBumpers = len(self.bumperObjects)
         self.numberOfJamabars = len(self.jamabarObjects)
@@ -115,6 +114,8 @@ class SMBLZExporter(bpy.types.Operator):
         self.numberOfLevelModels = len(self.levelModelObjects)
         self.numberOfBackgroundModels = len(self.backgroundModelObjects)
         self.numberOfReflectiveObjects = len(self.reflectiveObjects)
+        
+        # Begin writing the LZ file
         self.writeLZ(context)
         return {'FINISHED'}            # this lets blender know the operator finished successfully.
         
@@ -125,6 +126,7 @@ class SMBLZExporter(bpy.types.Operator):
     def writeLZ(self, context):
         """Save an SMB LZ File"""
         with open(self.filepath, 'wb') as file:
+            # Written in semi-reverse order so that all needed offsets are known by each method
             self.writeStartPositions(file)
             self.writeGoals(file)
             self.writeBumpers(file)
@@ -136,205 +138,300 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeHeader(file)
     
     def writeZeroBytes(self, file, numZeros):
+        """Writes a set number of 0 bytes to a file"""
         byteArray = []
         for i in range(0, numZeros):
             byteArray.append(0)
         file.write(bytes(byteArray))
             
     def writeHeader(self, file):
+        """Writes the SMB LZ Header"""
         file.seek(0, 0)
-        self.writeZeroBytes(file, 8)                            # Unknown
-        file.write(self.toBigI(self.numCollisionFields))        # Number of collision fields
-        file.write(self.toBigI(self.collisionFieldsOffset))     # Offset to to collision fields
-        file.write(self.toBigI(160))                            # Size of head/offset to start position (always 0xA0)
-        file.write(self.toBigI(self.falloutPlaneOffset))        # Offset to fallout plane Y coordinate
-        file.write(self.toBigI(self.numberOfGoals))             # Number of goals
-        file.write(self.toBigI(self.goalsOffset))               # Offset to goals
-        file.write(self.toBigI(self.numberOfGoals));            # Number of goals
-        self.writeZeroBytes(file, 4)                            # Zero
-        file.write(self.toBigI(self.numberOfBumpers))           # Number of bumpers
-        file.write(self.toBigI(self.bumpersOffset))             # Offset to bumpers
-        file.write(self.toBigI(self.numberOfJamabars))          # Number of jamabars
-        file.write(self.toBigI(self.jamabarOffset))             # Offset to jamabars
-        file.write(self.toBigI(self.numberOfBananas))           # Number of bananas
-        file.write(self.toBigI(self.bananasOffset))             # Offset to bananas
-        self.writeZeroBytes(file, 10)                           # Zero
-        file.write(self.toBigI(0))                              # Number of something?
-        file.write(self.toBigI(0))                              # Offset to something?
-        file.write(self.toBigI(self.numberOfLevelModels))       # Number of level models
-        file.write(self.toBigI(self.levelModelsOffset))         # Offset to level models
-        self.writeZeroBytes(file, 8)                            # Zero
-        file.write(self.toBigI(self.numberOfBackgroundModels))  # Number of background models
-        file.write(self.toBigI(self.backgroundModelsOffset))    # Offset to background models
-        file.write(self.toBigI(0))                              # Number of something?
-        file.write(self.toBigI(0))                              # Offset to something
-        file.write(self.toBigI(0))                              # Zero
-        file.write(self.toBigI(1))                              # One
-        file.write(self.toBigI(self.numberOfReflectiveObjects)) # Number of reflective objects
-        file.write(self.toBigI(self.reflectiveObjectsOffset))   # Offset to reflective objects
-        self.writeZeroBytes(file, 30)                           # Unknown
+        self.writeZeroBytes(file, 8)                            # (8i) Unknown
+        file.write(self.toBigI(self.numCollisionFields))        # (4i) Number of collision fields
+        file.write(self.toBigI(self.collisionFieldsOffset))     # (4i) Offset to to collision fields
+        file.write(self.toBigI(160))                            # (4i) Size of head/offset to start position (always 0xA0)
+        file.write(self.toBigI(self.falloutPlaneOffset))        # (4i) Offset to fallout plane Y coordinate
+        file.write(self.toBigI(self.numberOfGoals))             # (4i) Number of goals
+        file.write(self.toBigI(self.goalsOffset))               # (4i) Offset to goals
+        file.write(self.toBigI(self.numberOfGoals));            # (4i) Number of goals
+        self.writeZeroBytes(file, 4)                            # (4i) Zero
+        file.write(self.toBigI(self.numberOfBumpers))           # (4i) Number of bumpers
+        file.write(self.toBigI(self.bumpersOffset))             # (4i) Offset to bumpers
+        file.write(self.toBigI(self.numberOfJamabars))          # (4i) Number of jamabars
+        file.write(self.toBigI(self.jamabarOffset))             # (4i) Offset to jamabars
+        file.write(self.toBigI(self.numberOfBananas))           # (4i) Number of bananas
+        file.write(self.toBigI(self.bananasOffset))             # (4i) Offset to bananas
+        self.writeZeroBytes(file, 10)                           # (10i)Zero
+        file.write(self.toBigI(0))                              # (4i) Number of something?
+        file.write(self.toBigI(0))                              # (4i) Offset to something?
+        file.write(self.toBigI(self.numberOfLevelModels))       # (4i) Number of level models
+        file.write(self.toBigI(self.levelModelsOffset))         # (4i) Offset to level models
+        self.writeZeroBytes(file, 8)                            # (8i) Zero
+        file.write(self.toBigI(self.numberOfBackgroundModels))  # (4i) nNumber of background models
+        file.write(self.toBigI(self.backgroundModelsOffset))    # (4i) Offset to background models
+        file.write(self.toBigI(0))                              # (4i) Number of something?
+        file.write(self.toBigI(0))                              # (4i) Offset to something
+        file.write(self.toBigI(0))                              # (4i) Zero
+        file.write(self.toBigI(1))                              # (4i) One
+        file.write(self.toBigI(self.numberOfReflectiveObjects)) # (4i) Number of reflective objects
+        file.write(self.toBigI(self.reflectiveObjectsOffset))   # (4i) Offset to reflective objects
+        self.writeZeroBytes(file, 30)                           # (30i)Unknown
         
     def writeStartPositions(self, file):
+        """Writes the start positions to the file"""
+        """(1 for levels, 1+ for some many games)"""
+        
+        # Make sure we write into the right position
+        # Start positions are always right after the header
         file.seek(self.sizeOfHeader, 0)
+        
+        # Go through start position objects and write them in
         for obj in self.startPositionObjects:
-            file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.z))
-            file.write(self.toBigF(obj.location.y))
-            file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.z))
-            file.write(self.toShortI(obj.rotation_euler.y))
-            self.writeZeroBytes(file, 2)
+            file.write(self.toBigF(obj.location.x))             # (4f) X location
+            file.write(self.toBigF(obj.location.z))             # (4f) Y location
+            file.write(self.toBigF(obj.location.y))             # (4f) Z Location
+            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
+            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
+            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            self.writeZeroBytes(file, 2)                        # (2i) Zero
+            
+        # Goals are next in the file. Write in their offset
         self.goalsOffset = file.tell()
         
     def writeGoals(self, file):
+        """Writes the goals into the lz"""
+        
+        # Make sure we are in the right position
         file.seek(self.goalsOffset, 0)
+        # Go through goal objects and write them in
         for obj in self.goalObjects:
-            file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.z))
-            file.write(self.toBigF(obj.location.y))
-            file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.z))
-            file.write(self.toShortI(obj.rotation_euler.y))
+            file.write(self.toBigF(obj.location.x))             # (4f) X location
+            file.write(self.toBigF(obj.location.z))             # (4f) Y location
+            file.write(self.toBigF(obj.location.y))             # (4f) Z location
+            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
+            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
+            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            # Determine the goal type (blue = default)
+            # Red = 0x5200, Green = 0x4700, Blue = 0x4200
             lowerName = obj.name.lower()
             if "red" in lowerName:
-                file.write(self.toShortI(0x5200))
+                file.write(self.toShortI(0x5200))               # (2i) Goal type (Red)  
             elif "green" in lowerName:
-                file.write(self.toShortI(0x4700))
+                file.write(self.toShortI(0x4700))               # (2i) Goal type (Green)
             else:
-                file.write(self.toShortI(0x4200))
+                file.write(self.toShortI(0x4200))               # (2i) Goal type (Blue)
             
-            
+        # Bumpers are next in the file. Write in their offset
         self.bumpersOffset = file.tell()
         
     def writeBumpers(self, file):
+        """Writes the bumpers into the LZ"""
+        
+        # Make sure we are in the right position
         file.seek(self.bumpersOffset, 0)
+        # Go through bumper objects and write them in
         for obj in self.goalObjects:
-            file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.z))
-            file.write(self.toBigF(obj.location.y))
-            file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.z))
-            file.write(self.toShortI(obj.rotation_euler.y))
-            self.writeZeroBytes(file, 2)
-            file.write(self.toBigF(obj.scale.x))
-            file.write(self.toBigF(obj.scale.z))
-            file.write(self.toBigF(obj.scale.y)) 
+            file.write(self.toBigF(obj.location.x))             # (4f) X location
+            file.write(self.toBigF(obj.location.z))             # (4f) Y location
+            file.write(self.toBigF(obj.location.y))             # (4f) Z location
+            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
+            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
+            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            self.writeZeroBytes(file, 2)                        # (2i) Zero
+            file.write(self.toBigF(obj.scale.x))                # (4f) X scale
+            file.write(self.toBigF(obj.scale.z))                # (4f) Y scale
+            file.write(self.toBigF(obj.scale.y))                # (4f) Z scale
+            
+        # Jamabars are next in the file. Write in their offset
         self.jamabarOffset = file.tell()
         
     def writeJamabars(self, file):
+        """Writes the bumpers into the LZ"""
+        
+        # Make sure we are in the right position
         file.seek(self.jamabarOffset, 0)
+        # Go through the jamabar objects and write them in
         for obj in self.goalObjects:
-            file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.z))
-            file.write(self.toBigF(obj.location.y))
-            file.write(self.toShortI(obj.rotation_euler.x))
-            file.write(self.toShortI(obj.rotation_euler.z))
-            file.write(self.toShortI(obj.rotation_euler.y))
-            self.writeZeroBytes(file, 2)
-            file.write(self.toBigF(obj.scale.x))
-            file.write(self.toBigF(obj.scale.z))
-            file.write(self.toBigF(obj.scale.y)) 
+            file.write(self.toBigF(obj.location.x))             # (4f) X location
+            file.write(self.toBigF(obj.location.z))             # (4f) Y location
+            file.write(self.toBigF(obj.location.y))             # (4f) Z location
+            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
+            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
+            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            self.writeZeroBytes(file, 2)                        # (2i) Zero
+            file.write(self.toBigF(obj.scale.x))                # (4f) X scale
+            file.write(self.toBigF(obj.scale.z))                # (4f) Y scale
+            file.write(self.toBigF(obj.scale.y))                # (4f) Z 
+        
+        # Bananas are next in the file. Write in their offset
         self.bananasOffset = file.tell()
         
     def writeBananas(self, file):
+        """Write the bananas into the LZ"""
+        
+        # Make sure we are in the right position
         file.seek(self.bananasOffset, 0)
+        # Go through the banana objects and write them in
         for obj in self.goalObjects:
-            file.write(self.toBigF(obj.location.x))
-            file.write(self.toBigF(obj.location.z))
-            file.write(self.toBigF(obj.location.y))
+            file.write(self.toBigF(obj.location.x))             # (4f) X location
+            file.write(self.toBigF(obj.location.z))             # (4f) Y location
+            file.write(self.toBigF(obj.location.y))             # (4f) Z location
+            # Determine the banana type (single/nanner = default)
+            # Bunch = 1, Single.Nanner = 1
             if "bunch" in obj.name.lower():
-                file.write(self.toBigI(1))
+                file.write(self.toBigI(1))                      # (4i) Banana Type (Bunch)
             else:
-                file.write(self.toBigI(0))
+                file.write(self.toBigI(0))                      # (4i) Banana Type (Single/Nanner)
+        
+        # Model names are next in the file. Write in their offset
         self.modelNamesOffset = file.tell()
         
     def writeobjectNames(self, file):
+        """Write the model names into the file"""
+        
+        # Make sure we are in the right position
         file.seek(self.modelNamesOffset, 0)
+        
+        # Go through every standard level model and write their name in
         for obj in self.levelModelObjects:
+            # Add this name to the list of name offsets
             self.levelModelNameOffsets.append(file.tell())
+            # Encode the name into bytes and write it in
             nameBytes = bytearray()
             nameBytes.extend(obj.name.encode())
-            file.write(nameBytes)
+            file.write(nameBytes)                               # (ascii) Model name
+            
+        # Go through every background level model and write their name in
         for obj in self.backgroundModelObjects:
+            # Add this name to the list of name offsets
             self.backgroundModelNameOffsets.append(file.tell())
+            # Encode the name into bytes and write it in
             nameBytes = bytearray()
             nameBytes.extend(obj.name.encode())
-            file.write(nameBytes)
+            file.write(nameBytes)                               # (ascii) Model name
+            
+        # Go through every reflective level model and write their name in
         for obj in self.reflectiveObjects:
+            # Add this name to the list of name offsets
             self.reflectiveObjectNameOffsets.append(file.tell())
+            # Encode the name into bytes and write it in
             nameBytes = bytearray()
             nameBytes.extend(obj.name.encode())
-            file.write(nameBytes)
+            file.write(nameBytes)                               # (ascii) Model name
+            
+        # Level Model Headers are next in the file. Write their offset
         self.levelModelsOffset = file.tell()
         
     def writeLevelModels(self, file):
-        # Level Models
-        file.seek(self.levelModelsOffset, 0)
-        for i in range(0, len(self.levelModelNameOffsets)):
-            file.write(self.toBigI(1))
-            self.levelModelNamePointerOffsets.append(file.tell())
-            file.write(self.toBigI(self.levelModelNameOffsets[i]))
-            file.write(self.toBigI(0))
-            
-        # Background Models
-        self.backgroundModelsOffset = file.tell()
-        for i in range(0, len(self.backgroundModelNameOffsets)):
-            file.write(self.toBigI(1))
-            self.backgroundModelNamePointerOffsets.append(file.tell())
-            file.write(self.toBigI(self.backgroundModelNameOffsets[i]))
-            file.write(self.toBigI(0))
+        """Write the level model headers into the file"""
         
-        # Reflective Models
+        # Make sure we are in the right position
+        file.seek(self.levelModelsOffset, 0)
+        
+        # Go through every standard level model and write its header
+        for i in range(0, len(self.levelModelNameOffsets)):
+            file.write(self.toBigI(1))                                      # (4i) Zero
+            # Add the offset the list of pointers to level name asciis
+            self.levelModelNamePointerOffsets.append(file.tell())   
+            file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
+            file.write(self.toBigI(0))                                      # (4i) Zero
+            
+        # Save where the background level models headers start
+        self.backgroundModelsOffset = file.tell()
+        # Go through every standard level model and write its header
+        for i in range(0, len(self.backgroundModelNameOffsets)):
+            file.write(self.toBigI(1))                                      # (4i) Zero
+            # Add the offset the list of pointers to level name asciis
+            self.backgroundModelNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.backgroundModelNameOffsets[i]))     # (4i) Offset to model name ascii
+            file.write(self.toBigI(0))                                      # (4i) Zero
+        
+        # Save where the reflective level models headers start
         self.reflectiveObjectsOffset = file.tell()
+        # Go through every standard level model and write its header
         for i in range(0, len(self.reflectiveObjectNameOffsets)):
-            file.write(self.toBigI(1))
-            self.reflectiveObjectNamePointerOffsets.append(file.tell())
-            file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))
-            file.write(self.toBigI(0))
+            file.write(self.toBigI(1))                                  
+            self.reflectiveObjectNamePointerOffsets.append(file.tell())     # (4i) Zero
+            # Add the offset the list of pointers to level name asciis
+            file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))    # (4i) Offset to model name ascii   
+            file.write(self.toBigI(0))                                      # (4i) Zero
             
     def writeCollisionTriangles(self, file, context):
+        """Write the collision triangles into the LZ"""
         from mathutils import Vector
-        # Level Models
+        
+        # Go through every standard level model and write its triangles
         for i in range(0, len(self.levelModelObjects)):
+            # Add this offset to the list of triangle offsets
             self.levelModelTriangleOffsets.append(file.tell())
+            # Duplicate the object to avoid modifying the actual blender scene
             obj = self.duplicateObject(self.levelModelObjects[i])
+            # Triangulate the object
             self.triangulate_object(obj)
+            # Add the number of faces to the list of triangle counts
+            self.numberOfLevelModelTriangles.append(len(obj.data.polygons))
+            
+            # Go through every triangle face
             for face in obj.data.polygons:
                 vertices = []
+                # Collect the face's vertices
                 for vert in face.vertices:
                     vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
             
-        # Background Models
+        # Go through every background level model and write its triangles
         for i in range(0, len(self.backgroundModelObjects)):
+            # Add this offset to the list of triangle offsets
             self.backgroundModelTriangleOffsets.append(file.tell())
+            # Duplicate the object to avoid modifying the actual blender scene
             obj = self.duplicateObject(self.backgroundModelObjects[i])
+            # Triangulate the object
             self.triangulate_object(obj)
+             # Add the number of faces to the list of triangle counts
+            self.numberOfBackgoundModelTriangles.append(len(obj.data.polygons))
+            
+            # Go through every triangle face
             for face in obj.data.polygons:
                 vertices = []
+                # Collect the face's vertices
                 for vert in face.vertices:
                     vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
         
-        # Reflective Models
+        # Go through every reflective level model and write its triangles
         for i in range(0, len(self.reflectiveObjects)):
+            # Add this offset to the list of triangle offsets
             self.reflectiveObjectTriangleOffsets.append(file.tell())
+            # Duplicate the object to avoid modifying the actual blender scene
             obj = self.duplicateObject(self.reflectiveObjects[i])
+            # Triangulate the object
             self.triangulate_object(obj)
+             # Add the number of faces to the list of triangle counts
+            self.numberOfBackgoundModelTriangles.append(len(obj.data.polygons))
+            
+            # Go through every triangle face
             for face in obj.data.polygons:
                 vertices = []
+                # Collect the face's vertices
                 for vert in face.vertices:
                     vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
                 
     def writeCollisionFields(self, file):
-    
+        """Write the collision field headers into the LZ"""
+        
+        # Save where the collision fields offset is
         self.collisionFieldsOffset = file.tell()
         
         # Level Models
         for i in range(0, len(self.levelModelObjects)):
-            obj = self.levelModelObjects[i]
-            file.write(self.toBigF(obj.location[0]))
+            break
+            #obj = self.levelModelObjects[i]
+            #file.write(self.toBigF(obj.location[0]))
             #file.write
             
         # Background Models
@@ -431,7 +528,10 @@ class SMBLZExporter(bpy.types.Operator):
         bm.free()
         
     def writeTriangle(self, file, vertex, vertex2, vertex3):
+        """Writes a triangle into the LZ"""
+        """Mostly duplicated from Yoshimaster's original code"""
         from mathutils import Vector
+        
         # Swap Y and Z positions (Blender has Z being up instead of Y)
         temp = vertex[1]
         vertex[1] = vertex[2]
@@ -484,24 +584,24 @@ class SMBLZExporter(bpy.types.Operator):
         rot_y = 360.0 - self.reverse_angle(cy, sy)
         rot_z = 360.0 - self.reverse_angle(cz, sz)
         
-        file.write(self.toBigF(vertex[0]))
-        file.write(self.toBigF(vertex[1]))
-        file.write(self.toBigF(vertex[2]))
-        file.write(self.toBigF(normal[0]))
-        file.write(self.toBigF(normal[1]))
-        file.write(self.toBigF(normal[2]))
-        file.write(self.toShortI(self.cnvAngle(rot_x)))
-        file.write(self.toShortI(self.cnvAngle(rot_y)))
-        file.write(self.toShortI(self.cnvAngle(rot_z)))
-        self.writeZeroBytes(file, 2)
-        file.write(self.toBigF(dotrz[0]))
-        file.write(self.toBigF(dotrz[1]))
-        file.write(self.toBigF(dotrzrxry[0]))
-        file.write(self.toBigF(dotrzrxry[1]))
-        file.write(self.toBigF(n0[0]))
-        file.write(self.toBigF(n0[1]))
-        file.write(self.toBigF(n1[0]))
-        file.write(self.toBigF(n1[1]))
+        file.write(self.toBigF(vertex[0]))              # (4f) X1 position
+        file.write(self.toBigF(vertex[1]))              # (4f) Y1 position
+        file.write(self.toBigF(vertex[2]))              # (4f) Z1 position
+        file.write(self.toBigF(normal[0]))              # (4f) X normal
+        file.write(self.toBigF(normal[1]))              # (4f) Y normal
+        file.write(self.toBigF(normal[2]))              # (4f) Z normal
+        file.write(self.toShortI(self.cnvAngle(rot_x))) # (2i) X rotation from XY plane
+        file.write(self.toShortI(self.cnvAngle(rot_y))) # (2i) Y rotation from XY plane
+        file.write(self.toShortI(self.cnvAngle(rot_z))) # (2i) Z rotation from XY plane
+        self.writeZeroBytes(file, 2)                    # (2i) Zero
+        file.write(self.toBigF(dotrz[0]))               # (4f) DX2X1
+        file.write(self.toBigF(dotrz[1]))               # (4f) DY2Y1
+        file.write(self.toBigF(dotrzrxry[0]))           # (4f) DX3X1
+        file.write(self.toBigF(dotrzrxry[1]))           # (4f) DY3Y1
+        file.write(self.toBigF(n0[0]))                  # (4f) Tangent X
+        file.write(self.toBigF(n0[1]))                  # (4f) Tangent Y
+        file.write(self.toBigF(n1[0]))                  # (4f) Bitangent X
+        file.write(self.toBigF(n1[1]))                  # (4f) Bitangent Y
 
 def menu_func_export(self, context):
     self.layout.operator(SMBLZExporter.bl_idname, text="SMB LZ (.lz)")
