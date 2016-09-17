@@ -28,7 +28,7 @@ class SMBLZExporter(bpy.types.Operator):
     filepath = bpy.props.StringProperty(subtype='FILE_PATH')
     
     startPositionObjects = []
-    numCollisionFields = 0;
+    numberOfCollisionFields = 0;
     collisionFieldsOffset = 0
     collisionFields = []
     sizeOfHeader = 160
@@ -117,7 +117,6 @@ class SMBLZExporter(bpy.types.Operator):
         self.numberOfLevelModels = len(self.levelModelObjects)
         self.numberOfBackgroundModels = len(self.backgroundModelObjects)
         self.numberOfReflectiveObjects = len(self.reflectiveObjects)
-        
         # Begin writing the LZ file
         self.writeLZ(context)
         return {'FINISHED'}            # this lets blender know the operator finished successfully.
@@ -131,6 +130,7 @@ class SMBLZExporter(bpy.types.Operator):
         with open(self.filepath, 'wb') as file:
             # Written in semi-reverse order so that all needed offsets are known by each method
             self.writeStartPositions(file)
+            self.writeFalloutPlane(file)
             self.writeGoals(file)
             self.writeBumpers(file)
             self.writeJamabars(file)
@@ -157,7 +157,7 @@ class SMBLZExporter(bpy.types.Operator):
         """Writes the SMB LZ Header"""
         file.seek(0, 0)
         self.writeZeroBytes(file, 8)                            # (8i) Unknown
-        file.write(self.toBigI(self.numCollisionFields))        # (4i) Number of collision fields
+        file.write(self.toBigI(self.numberOfCollisionFields))   # (4i) Number of collision fields
         file.write(self.toBigI(self.collisionFieldsOffset))     # (4i) Offset to to collision fields
         file.write(self.toBigI(160))                            # (4i) Size of head/offset to start position (always 0xA0)
         file.write(self.toBigI(self.falloutPlaneOffset))        # (4i) Offset to fallout plane Y coordinate
@@ -205,14 +205,15 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
             self.writeZeroBytes(file, 2)                        # (2i) Zero
             
-        # Goals are next in the file. Write in their offset
-        self.goalsOffset = file.tell()
+    def writeFalloutPlane(self, file):
+        self.falloutPlaneOffset = file.tell()
+        file.write(self.toBigI(self.falloutPlaneY))             # (4i) Fallout Y coordinate
         
     def writeGoals(self, file):
         """Writes the goals into the lz"""
         
-        # Make sure we are in the right position
-        file.seek(self.goalsOffset, 0)
+        self.goalsOffset = file.tell()
+        
         # Go through goal objects and write them in
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))             # (4f) X location
@@ -231,14 +232,12 @@ class SMBLZExporter(bpy.types.Operator):
             else:
                 file.write(self.toShortI(0x4200))               # (2i) Goal type (Blue)
             
-        # Bumpers are next in the file. Write in their offset
-        self.bumpersOffset = file.tell()
         
     def writeBumpers(self, file):
         """Writes the bumpers into the LZ"""
         
-        # Make sure we are in the right position
-        file.seek(self.bumpersOffset, 0)
+        self.bumpersOffset = file.tell()
+        
         # Go through bumper objects and write them in
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))             # (4f) X location
@@ -252,14 +251,12 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.scale.z))                # (4f) Y scale
             file.write(self.toBigF(obj.scale.y))                # (4f) Z scale
             
-        # Jamabars are next in the file. Write in their offset
-        self.jamabarOffset = file.tell()
         
     def writeJamabars(self, file):
         """Writes the bumpers into the LZ"""
         
-        # Make sure we are in the right position
-        file.seek(self.jamabarOffset, 0)
+        self.jamabarOffset = file.tell()
+        
         # Go through the jamabar objects and write them in
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))             # (4f) X location
@@ -273,14 +270,12 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.scale.z))                # (4f) Y scale
             file.write(self.toBigF(obj.scale.y))                # (4f) Z 
         
-        # Bananas are next in the file. Write in their offset
-        self.bananasOffset = file.tell()
         
     def writeBananas(self, file):
         """Write the bananas into the LZ"""
         
-        # Make sure we are in the right position
-        file.seek(self.bananasOffset, 0)
+        self.bananasOffset = file.tell()
+        
         # Go through the banana objects and write them in
         for obj in self.goalObjects:
             file.write(self.toBigF(obj.location.x))             # (4f) X location
@@ -293,14 +288,11 @@ class SMBLZExporter(bpy.types.Operator):
             else:
                 file.write(self.toBigI(0))                      # (4i) Banana Type (Single/Nanner)
         
-        # Model names are next in the file. Write in their offset
-        self.modelNamesOffset = file.tell()
         
     def writeobjectNames(self, file):
         """Write the model names into the file"""
         
-        # Make sure we are in the right position
-        file.seek(self.modelNamesOffset, 0)
+        self.modelNamesOffset = file.tell()
         
         # Go through every standard level model and write their name in
         for obj in self.levelModelObjects:
@@ -310,6 +302,7 @@ class SMBLZExporter(bpy.types.Operator):
             nameBytes = bytearray()
             nameBytes.extend(obj.name.encode())
             file.write(nameBytes)                               # (ascii) Model name
+            self.writeZeroBytes(file, 1)                        # (1i) \0 Char
             
         # Go through every background level model and write their name in
         for obj in self.backgroundModelObjects:
@@ -319,6 +312,7 @@ class SMBLZExporter(bpy.types.Operator):
             nameBytes = bytearray()
             nameBytes.extend(obj.name.encode())
             file.write(nameBytes)                               # (ascii) Model name
+            self.writeZeroBytes(file, 1)                        # (1i) \0 Char
             
         # Go through every reflective level model and write their name in
         for obj in self.reflectiveObjects:
@@ -329,14 +323,11 @@ class SMBLZExporter(bpy.types.Operator):
             nameBytes.extend(obj.name.encode())
             file.write(nameBytes)                               # (ascii) Model name
             
-        # Level Model Headers are next in the file. Write their offset
-        self.levelModelsOffset = file.tell()
         
     def writeLevelModels(self, file):
         """Write the level model headers into the file"""
         
-        # Make sure we are in the right position
-        file.seek(self.levelModelsOffset, 0)
+        self.levelModelsOffset = file.tell()
         
         # Go through every standard level model and write its header
         for i in range(0, len(self.levelModelNameOffsets)):
@@ -500,6 +491,8 @@ class SMBLZExporter(bpy.types.Operator):
         # Save where the collision fields offset is
         self.collisionFieldsOffset = file.tell()
         
+        self.numberOfCollisionFields = self.numberOfLevelModels + self.numberOfReflectiveObjects
+        
         # Go through every standard level model and write its collision header
         for i in range(0, len(self.levelModelObjects)):
             obj = self.levelModelObjects[i]
@@ -570,7 +563,8 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigI(self.numberOfReflectiveObjects)) # (4i) Number of reflective objects
         file.write(self.toBigI(self.reflectiveObjectsOffset))   # (4i) Offset to reflective objects
         self.writeZeroBytes(file, 48)                           # (48i)Unknown
-            
+        
+    
     def toBigI(self, number):
         return struct.pack('>I', number)
         
