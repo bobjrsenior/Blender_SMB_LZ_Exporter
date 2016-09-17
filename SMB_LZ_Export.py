@@ -134,6 +134,8 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeBananas(file)
             self.writeobjectNames(file)
             self.writeLevelModels(file)
+            sekf.writeReflectiveModels(file)
+            self.writeBackgroundModels(file)
             self.writeCollisionTriangles(file, context)
             self.writeHeader(file)
     
@@ -336,27 +338,43 @@ class SMBLZExporter(bpy.types.Operator):
             self.levelModelNamePointerOffsets.append(file.tell())   
             file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
-            
-        # Save where the background level models headers start
-        self.backgroundModelsOffset = file.tell()
-        # Go through every standard level model and write its header
-        for i in range(0, len(self.backgroundModelNameOffsets)):
-            file.write(self.toBigI(1))                                      # (4i) Zero
-            # Add the offset the list of pointers to level name asciis
-            self.backgroundModelNamePointerOffsets.append(file.tell())
-            file.write(self.toBigI(self.backgroundModelNameOffsets[i]))     # (4i) Offset to model name ascii
-            file.write(self.toBigI(0))                                      # (4i) Zero
-        
+                 
+    def writeReflectiveModels(self, file):
+        """Write the reflective model headers into the file"""
         # Save where the reflective level models headers start
         self.reflectiveObjectsOffset = file.tell()
         # Go through every standard level model and write its header
         for i in range(0, len(self.reflectiveObjectNameOffsets)):
-            file.write(self.toBigI(1))                                  
-            self.reflectiveObjectNamePointerOffsets.append(file.tell())     # (4i) Zero
+            self.reflectiveObjectNamePointerOffsets.append(file.tell())
             # Add the offset the list of pointers to level name asciis
             file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))    # (4i) Offset to model name ascii   
             file.write(self.toBigI(0))                                      # (4i) Zero
-            
+    
+    def writeBackgroundModels(self, file):
+        """Write the background model headers into the file"""
+        
+        # Save where the background level models headers start
+        self.backgroundModelsOffset = file.tell()
+        # Go through every standard level model and write its header
+        for i in range(0, len(self.backgroundModelNameOffsets)):
+            obj = self.backgroundModelObjects[i]
+            file.write(self.toBigI(31))                                     # (31i)Zero
+            # Add the offset the list of pointers to level name asciis
+            self.backgroundModelNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.backgroundModelNameOffsets[i]))     # (4i) Offset to model name ascii
+            file.write(self.toBigI(0))                                      # (4i) Zero
+            file.write(self.toBigF(obj.location.x))                         # (4f) X location
+            file.write(self.toBigF(obj.location.z))                         # (4f) Y location
+            file.write(self.toBigF(obj.location.y))                         # (4f) Z location
+            self.write(self.toShortI(obj.rotation_euler.x))                 # (2i) X rotation
+            self.write(self.toShortI(obj.rotation_euler.z))                 # (2i) Z rotation
+            self.write(self.toShortI(obj.rotation_euler.y))                 # (2i) Y rotation
+            self.writeZeroBytes(file, 2)                                    # (2i) Zero
+            file.write(self.toBigF(obj.scale.x))                            # (4f) X scale
+            file.write(self.toBigF(obj.scale.z))                            # (4f) Y scale
+            file.write(self.toBigF(obj.scale.y))                            # (4f) Z scale
+            self.writeZeroBytes(file, 12)                                   # (12i)Zero
+        
     def writeCollisionTriangles(self, file, context):
         """Write the collision triangles into the LZ"""
         from mathutils import Vector
@@ -381,26 +399,6 @@ class SMBLZExporter(bpy.types.Operator):
                 # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
             
-        # Go through every background level model and write its triangles
-        for i in range(0, len(self.backgroundModelObjects)):
-            # Add this offset to the list of triangle offsets
-            self.backgroundModelTriangleOffsets.append(file.tell())
-            # Duplicate the object to avoid modifying the actual blender scene
-            obj = self.duplicateObject(self.backgroundModelObjects[i])
-            # Triangulate the object
-            self.triangulate_object(obj)
-             # Add the number of faces to the list of triangle counts
-            self.numberOfBackgoundModelTriangles.append(len(obj.data.polygons))
-            
-            # Go through every triangle face
-            for face in obj.data.polygons:
-                vertices = []
-                # Collect the face's vertices
-                for vert in face.vertices:
-                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
-                # Write the triangle to the LZ
-                self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
-        
         # Go through every reflective level model and write its triangles
         for i in range(0, len(self.reflectiveObjects)):
             # Add this offset to the list of triangle offsets
@@ -433,11 +431,7 @@ class SMBLZExporter(bpy.types.Operator):
             #obj = self.levelModelObjects[i]
             #file.write(self.toBigF(obj.location[0]))
             #file.write
-            
-        # Background Models
-        for i in range(0, len(self.backgroundModelObjects)):
-            break
-        
+              
         # Reflective Models
         for i in range(0, len(self.reflectiveObjects)):
             break
