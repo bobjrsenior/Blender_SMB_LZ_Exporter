@@ -137,6 +137,7 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeReflectiveModels(file)
             self.writeBackgroundModels(file)
             self.writeCollisionTriangles(file, context)
+            self.writeCollisionGridTriangleList(file)
             self.writeHeader(file)
     
     def writeZeroBytes(self, file, numZeros):
@@ -408,7 +409,7 @@ class SMBLZExporter(bpy.types.Operator):
             # Triangulate the object
             self.triangulate_object(obj)
              # Add the number of faces to the list of triangle counts
-            self.numberOfBackgoundModelTriangles.append(len(obj.data.polygons))
+            self.numberOfReflectiveObjectTriangles.append(len(obj.data.polygons))
             
             # Go through every triangle face
             for face in obj.data.polygons:
@@ -419,6 +420,32 @@ class SMBLZExporter(bpy.types.Operator):
                 # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
                 
+    def writeCollisionGridTriangleList(self, file):
+        """Writes the list of triangles used for each objects collider"""
+        
+        # Go through every standard level model and write its collision grid list
+        for i in range(0, len(self.levelModelObjects)):
+            # Add this offset to the collision grid pointers list
+            self.levelModelCollisionGridPointers.append(file.tell())
+            
+            numTriangles = self.numberOfLevelModelTriangles[i]
+            # Triangles are ordered, so just writing 0-numTriangles
+            for i in range(0, numTriangles):
+                file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
+            file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
+        
+        # Go through every reflective level model and write its collision grid list
+        for i in range(0, len(self.reflectiveObjects)):
+            # Add this offset to the collision grid pointers list
+            self.reflectiveObjectCollisionGridPointers.append(file.tell())
+            
+            numTriangles = self.numberOfReflectiveObjectTriangles[i]
+            # Triangles are ordered, so just writing 0-numTriangles
+            for i in range(0, numTriangles):
+                file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
+            file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
+        
+            
     def writeCollisionFields(self, file):
         """Write the collision field headers into the LZ"""
         
