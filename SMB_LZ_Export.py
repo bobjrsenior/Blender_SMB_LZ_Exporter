@@ -134,7 +134,7 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeBananas(file)
             self.writeobjectNames(file)
             self.writeLevelModels(file)
-            sekf.writeReflectiveModels(file)
+            self.writeReflectiveModels(file)
             self.writeBackgroundModels(file)
             self.writeCollisionTriangles(file, context)
             self.writeHeader(file)
