@@ -171,21 +171,21 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigI(self.jamabarOffset))             # (4i) Offset to jamabars
         file.write(self.toBigI(self.numberOfBananas))           # (4i) Number of bananas
         file.write(self.toBigI(self.bananasOffset))             # (4i) Offset to bananas
-        self.writeZeroBytes(file, 16)                           # (16i)Zero
+        self.writeZeroBytes(file, 10)                           # (10i)Zero
         file.write(self.toBigI(0))                              # (4i) Number of something?
         file.write(self.toBigI(0))                              # (4i) Offset to something?
         file.write(self.toBigI(self.numberOfLevelModels))       # (4i) Number of level models
         file.write(self.toBigI(self.levelModelsOffset))         # (4i) Offset to level models
         self.writeZeroBytes(file, 8)                            # (8i) Zero
-        file.write(self.toBigI(self.numberOfBackgroundModels))  # (4i) nNumber of background models
+        file.write(self.toBigI(self.numberOfBackgroundModels))  # (4i) Number of background models
         file.write(self.toBigI(self.backgroundModelsOffset))    # (4i) Offset to background models
         file.write(self.toBigI(0))                              # (4i) Number of something?
         file.write(self.toBigI(0))                              # (4i) Offset to something
         file.write(self.toBigI(0))                              # (4i) Zero
         file.write(self.toBigI(1))                              # (4i) One
-        file.write(self.toBigI(self.numberOfReflectiveObjects)) # (4i) Number of reflective objects
+        file.write(self.toBigI(0))                              # (4i) Number of reflective objects
         file.write(self.toBigI(self.reflectiveObjectsOffset))   # (4i) Offset to reflective objects
-        self.writeZeroBytes(file, 48)                           # (48i)Unknown
+        self.writeZeroBytes(file, 30)                           # (30i)Unknown
         
     def writeStartPositions(self, file):
         """Writes the start positions to the file"""
@@ -197,12 +197,13 @@ class SMBLZExporter(bpy.types.Operator):
         
         # Go through start position objects and write them in
         for obj in self.startPositionObjects:
+            print("GGGGGG")
             file.write(self.toBigF(obj.location.x))             # (4f) X location
             file.write(self.toBigF(obj.location.z))             # (4f) Y location
             file.write(self.toBigF(obj.location.y))             # (4f) Z Location
-            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
-            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
-            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.x)))     # (2i) X rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.z)))     # (2i) Y rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.y)))     # (2i) Z rotation
             self.writeZeroBytes(file, 2)                        # (2i) Zero
             
     def writeFalloutPlane(self, file):
@@ -219,9 +220,9 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.x))             # (4f) X location
             file.write(self.toBigF(obj.location.z))             # (4f) Y location
             file.write(self.toBigF(obj.location.y))             # (4f) Z location
-            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
-            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
-            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.x)))     # (2i) X rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.z)))     # (2i) Y rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.y)))     # (2i) Z rotation
             # Determine the goal type (blue = default)
             # Red = 0x5200, Green = 0x4700, Blue = 0x4200
             lowerName = obj.name.lower()
@@ -243,9 +244,9 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.x))             # (4f) X location
             file.write(self.toBigF(obj.location.z))             # (4f) Y location
             file.write(self.toBigF(obj.location.y))             # (4f) Z location
-            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
-            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
-            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.x)))     # (2i) X rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.z)))     # (2i) Y rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.y)))     # (2i) Z rotation
             self.writeZeroBytes(file, 2)                        # (2i) Zero
             file.write(self.toBigF(obj.scale.x))                # (4f) X scale
             file.write(self.toBigF(obj.scale.z))                # (4f) Y scale
@@ -262,9 +263,9 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.x))             # (4f) X location
             file.write(self.toBigF(obj.location.z))             # (4f) Y location
             file.write(self.toBigF(obj.location.y))             # (4f) Z location
-            file.write(self.toShortI(obj.rotation_euler.x))     # (2i) X rotation
-            file.write(self.toShortI(obj.rotation_euler.z))     # (2i) Y rotation
-            file.write(self.toShortI(obj.rotation_euler.y))     # (2i) Z rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.x)))     # (2i) X rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.z)))     # (2i) Y rotation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.y)))     # (2i) Z rotation
             self.writeZeroBytes(file, 2)                        # (2i) Zero
             file.write(self.toBigF(obj.scale.x))                # (4f) X scale
             file.write(self.toBigF(obj.scale.z))                # (4f) Y scale
@@ -364,9 +365,9 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.x))                         # (4f) X location
             file.write(self.toBigF(obj.location.z))                         # (4f) Y location
             file.write(self.toBigF(obj.location.y))                         # (4f) Z location
-            self.write(self.toShortI(obj.rotation_euler.x))                 # (2i) X rotation
-            self.write(self.toShortI(obj.rotation_euler.z))                 # (2i) Z rotation
-            self.write(self.toShortI(obj.rotation_euler.y))                 # (2i) Y rotation
+            self.write(self.toShortI(self.cnvAngle(obj.rotation_euler.x)))                 # (2i) X rotation
+            self.write(self.toShortI(self.cnvAngle(obj.rotation_euler.z)))                 # (2i) Z rotation
+            self.write(self.toShortI(self.cnvAngle(obj.rotation_euler.y)))                 # (2i) Y rotation
             self.writeZeroBytes(file, 2)                                    # (2i) Zero
             file.write(self.toBigF(obj.scale.x))                            # (4f) X scale
             file.write(self.toBigF(obj.scale.z))                            # (4f) Y scale
@@ -499,9 +500,9 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.x))                                 # (4f) X center for animation
             file.write(self.toBigF(obj.location.z))                                 # (4f) Y center for animation
             file.write(self.toBigF(obj.location.y))                                 # (4f) Z center for animation
-            file.write(self.toShortI(obj.rotation_euler.x))                         # (2i) X rotation for animation
-            file.write(self.toShortI(obj.rotation_euler.z))                         # (2i) Y rotation for animation
-            file.write(self.toShortI(obj.rotation_euler.y))                         # (2i) Z rotation for animation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.x)))                         # (2i) X rotation for animation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.z)))                         # (2i) Y rotation for animation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.y)))                         # (2i) Z rotation for animation
             self.writeZeroBytes(file, 2)                                            # (2i) Zero
             file.write(self.toBigI(self.levelModelAnimationFrameOffsets[i]))        # (4i) Offset to animation frame header
             file.write(self.toBigI(self.levelModelNamePointerOffsets[i]))           # (4i) Offset to level model name pointer
@@ -521,21 +522,21 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.x))                                         # (4f) X center for animation
             file.write(self.toBigF(obj.location.z))                                         # (4f) Y center for animation
             file.write(self.toBigF(obj.location.y))                                         # (4f) Z center for animation
-            file.write(self.toShortI(obj.rotation_euler.x))                                 # (2i) X rotation for animation
-            file.write(self.toShortI(obj.rotation_euler.z))                                 # (2i) Y rotation for animation
-            file.write(self.toShortI(obj.rotation_euler.y))                                 # (2i) Z rotation for animation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.x)))                                 # (2i) X rotation for animation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.z)))                                 # (2i) Y rotation for animation
+            file.write(self.toShortI(self.cnvAngle(obj.rotation_euler.y)))                                 # (2i) Z rotation for animation
             self.writeZeroBytes(file, 2)                                                    # (2i) Zero
             file.write(self.toBigI(self.reflectiveObjectAnimationFrameOffsets[i]))          # (4i) Offset to animation frame header
             file.write(self.toBigI(self.reflectiveObjectNamePointerOffsets[i]))             # (4i) Offset to level model name pointer
             file.write(self.toBigI(self.reflectiveObjectTriangleOffsets[i]))                # (4i) Offset to triangle colliders
             file.write(self.toBigI(self.reflectiveObjectCollisionGridPointerPointers[i]))   # (4i) Offset to collision grid list pointers
-            file.write(self.toBigF(0))                                                      # (4i) Start X value for collision grid
-            file.write(self.toBigF(0))                                                      # (4i) Start Z value for collision grid
-            file.write(self.toBigF(1))                                          # (4i) Step X value for collision grid
-            file.write(self.toBigF(0))                                          # (4i) Step X value for collision grid
-            file.write(self.toBigI(16))                                         # (4i) 16
-            file.write(self.toBigI(16))                                         # (4i) 16
-            self.writePartialHeader(file)                                       # (136)Partial Header
+            file.write(self.toBigF(-100))                                                   # (4i) Start X value for collision grid
+            file.write(self.toBigF(-100))                                                   # (4i) Start Z value for collision grid
+            file.write(self.toBigF(200))                                                    # (4i) Step X value for collision grid
+            file.write(self.toBigF(200))                                                    # (4i) Step X value for collision grid
+            file.write(self.toBigI(16))                                                     # (4i) 16
+            file.write(self.toBigI(16))                                                     # (4i) 16
+            self.writePartialHeader(file)                                                   # (136)Partial Header
             
     def writePartialHeader(self, file):
         file.write(self.toBigI(self.numberOfGoals))             # (4i) Number of goals
@@ -548,21 +549,21 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigI(self.jamabarOffset))             # (4i) Offset to jamabars
         file.write(self.toBigI(self.numberOfBananas))           # (4i) Number of bananas
         file.write(self.toBigI(self.bananasOffset))             # (4i) Offset to bananas
-        self.writeZeroBytes(file, 16)                           # (16i)Zero
+        self.writeZeroBytes(file, 16)                           # (10i)Zero
         file.write(self.toBigI(0))                              # (4i) Number of something?
         file.write(self.toBigI(0))                              # (4i) Offset to something?
         file.write(self.toBigI(self.numberOfLevelModels))       # (4i) Number of level models
         file.write(self.toBigI(self.levelModelsOffset))         # (4i) Offset to level models
         self.writeZeroBytes(file, 8)                            # (8i) Zero
-        file.write(self.toBigI(0))                              # (4i) Zero
-        file.write(self.toBigI(0))                              # (4i) Zero
+        file.write(self.toBigI(0))                              # (4i) Number of background models
+        file.write(self.toBigI(0))                              # (4i) Offset to background models
         file.write(self.toBigI(0))                              # (4i) Number of something?
         file.write(self.toBigI(0))                              # (4i) Offset to something
         file.write(self.toBigI(0))                              # (4i) Zero
         file.write(self.toBigI(1))                              # (4i) One
-        file.write(self.toBigI(self.numberOfReflectiveObjects)) # (4i) Number of reflective objects
+        file.write(self.toBigI(0))                              # (4i) Number of reflective objects
         file.write(self.toBigI(self.reflectiveObjectsOffset))   # (4i) Offset to reflective objects
-        self.writeZeroBytes(file, 48)                           # (48i)Unknown
+        self.writeZeroBytes(file, 48)                           # (30i)Unknown
         
     
     def toBigI(self, number):
@@ -576,29 +577,29 @@ class SMBLZExporter(bpy.types.Operator):
         
     def cross(self, a, b):
         from mathutils import Vector
-        return Vector(((a[1] * b[2]) - (a[2] * b[1]),
-                      (a[2] * b[0]) - (a[0] * b[1]),
-                      (a[0] * b[1]) - (a[1] * b[0])))
+        return Vector(((a.y * b.z) - (a.z * b.y),
+                      (a.z * b.x) - (a.x * b.z),
+                      (a.x * b.y) - (a.y * b.x)))
                       
     def dot(self, a, b):
-        return (a[0] * b[0]) + (a[1] * b[1]) + (a[2] + b[2])
+        return (a.x * b.x) + (a.y * b.y) + (a.z + b.z)
         
     def dotm(self, a, r0, r1, r2):
         from mathutils import Vector
-        return Vector(((a[0] * r0[0]) + (a[1] * r1[0]) + (a[2] * r2[0]),
-                      (a[0] * r0[1]) + (a[1] * r1[1]) + (a[2] * r2[1]),
-                      (a[0] * r0[2]) + (a[1] * r1[2]) + (a[2] * r2[2])))
+        return Vector(((a.x * r0.x) + (a.y * r1.x) + (a.z * r2.x),
+                      (a.x * r0.y) + (a.y * r1.y) + (a.z * r2.y),
+                      (a.x * r0.z) + (a.y * r1.z) + (a.z * r2.z)))
         
     def normalize(self, v):
         from mathutils import Vector
-        magnitude = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+        magnitude = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
         if magnitude == 0:
             return Vector((0, 0, 0))
-        return Vector((v[0] / magnitude, v[1] / magnitude, v[2] / magnitude))
+        return Vector((v.x / magnitude, v.y / magnitude, v.z / magnitude))
       
     def hat(self, v):
         from mathutils import Vector
-        return Vector((-v[1], v[0], 0.0))
+        return Vector((-v.y, v.x, 0.0))
         
     def toDegrees(self, theta):
         return 57.2957795130824*theta
@@ -615,14 +616,13 @@ class SMBLZExporter(bpy.types.Operator):
             s = 1.0
         elif s < -1.0:
             s = -1.0
+        a = self.toDegrees(math.asin(s))
+        if c < 0:
+            a -= 180.0
         if abs(c) < abs(s):
             a = self.toDegrees(math.acos(c))
             if s < 0.0:
                 a = -a
-        else:
-            a = self.toDegrees(math.asin(s))
-            if c < 0.0:
-                a = 180.0 - a
         if a < 0.0:
             if a > -0.001:
                 a = 0.0
@@ -669,16 +669,16 @@ class SMBLZExporter(bpy.types.Operator):
         ca = Vector(((vertex3.x - vertex.x, vertex3.y - vertex.y, vertex3.z - vertex.z)))
         
         normal = self.normalize(self.cross(self.normalize(ba), self.normalize(ca)))
-        l = math.sqrt(normal[0] * normal[0] + normal[2] * normal[2])
+        l = math.sqrt(normal.x * normal.x + normal.z * normal.z)
 
         if abs(l) < 0.001:
             cy = 1.0
             sy = 0.0
         else:
-            cy = normal[2] / l
-            sy = -normal[0] / l
+            cy = normal.z / l
+            sy = -normal.x / l
         cx = l
-        sx = normal[1]
+        sx = normal.y
         
         Rxr0 = Vector((1.0, 0.0, 0.0))
         Rxr1 = Vector((0.0, cx, sx))
@@ -688,9 +688,9 @@ class SMBLZExporter(bpy.types.Operator):
         Ryr2 = Vector((sy, 0.0, cy))
         dotry = self.dotm(ba, Ryr0, Ryr1, Ryr2)
         dotrxry = self.dotm(dotry, Rxr0, Rxr1, Rxr2)
-        l = math.sqrt(dotrxry[0] * dotrxry[0] + dotrxry[2] * dotrxry[1])
-        cz = dotrxry[0] / l
-        sz = -dotrxry[1] / l
+        l = math.sqrt(dotrxry.x * dotrxry.x + dotrxry.y * dotrxry.y)
+        cz = dotrxry.x / l
+        sz = -dotrxry.y / l
         Rzr0 = Vector((cz, sz, 0.0))
         Rzr1 = Vector((-sz, cz, 0.0))
         Rzr2 = Vector((0.0, 0.0, 1.0))
@@ -698,8 +698,8 @@ class SMBLZExporter(bpy.types.Operator):
         dotry = self.dotm(ca, Ryr0, Ryr1, Ryr2)
         dotrzrxry = self.dotm(dotrxry, Rzr0, Rzr1, Rzr2)
         
-        n0v = Vector((dotrzrxry[0] - dotrz[0], dotrzrxry[1] - dotrz[1], dotrzrxry[2] - dotrz[2]))
-        n1v = Vector((-dotrzrxry[1], -dotrzrxry[1], -dotrzrxry[2]))
+        n0v = Vector((dotrzrxry.x - dotrz.x, dotrzrxry.y - dotrz.y, dotrzrxry.z - dotrz.z))
+        n1v = Vector((-dotrzrxry.y, -dotrzrxry.y, -dotrzrxry.z))
         n0 = self.normalize(self.hat(n0v))
         n1 = self.normalize(self.hat(n1v))
         
@@ -707,24 +707,24 @@ class SMBLZExporter(bpy.types.Operator):
         rot_y = 360.0 - self.reverse_angle(cy, sy)
         rot_z = 360.0 - self.reverse_angle(cz, sz)
         
-        file.write(self.toBigF(vertex[0]))              # (4f) X1 position
-        file.write(self.toBigF(vertex[1]))              # (4f) Y1 position
-        file.write(self.toBigF(vertex[2]))              # (4f) Z1 position
-        file.write(self.toBigF(normal[0]))              # (4f) X normal
-        file.write(self.toBigF(normal[1]))              # (4f) Y normal
-        file.write(self.toBigF(normal[2]))              # (4f) Z normal
+        file.write(self.toBigF(vertex.x))              # (4f) X1 position
+        file.write(self.toBigF(vertex.y))              # (4f) Y1 position
+        file.write(self.toBigF(vertex.z))              # (4f) Z1 position
+        file.write(self.toBigF(normal.x))              # (4f) X normal
+        file.write(self.toBigF(normal.y))              # (4f) Y normal
+        file.write(self.toBigF(normal.z))              # (4f) Z normal
         file.write(self.toShortI(self.cnvAngle(rot_x))) # (2i) X rotation from XY plane
         file.write(self.toShortI(self.cnvAngle(rot_y))) # (2i) Y rotation from XY plane
         file.write(self.toShortI(self.cnvAngle(rot_z))) # (2i) Z rotation from XY plane
         self.writeZeroBytes(file, 2)                    # (2i) Zero
-        file.write(self.toBigF(dotrz[0]))               # (4f) DX2X1
-        file.write(self.toBigF(dotrz[1]))               # (4f) DY2Y1
-        file.write(self.toBigF(dotrzrxry[0]))           # (4f) DX3X1
-        file.write(self.toBigF(dotrzrxry[1]))           # (4f) DY3Y1
-        file.write(self.toBigF(n0[0]))                  # (4f) Tangent X
-        file.write(self.toBigF(n0[1]))                  # (4f) Tangent Y
-        file.write(self.toBigF(n1[0]))                  # (4f) Bitangent X
-        file.write(self.toBigF(n1[1]))                  # (4f) Bitangent Y
+        file.write(self.toBigF(dotrz.x))               # (4f) DX2X1
+        file.write(self.toBigF(dotrz.y))               # (4f) DY2Y1
+        file.write(self.toBigF(dotrzrxry.x))           # (4f) DX3X1
+        file.write(self.toBigF(dotrzrxry.y))           # (4f) DY3Y1
+        file.write(self.toBigF(n0.x))                  # (4f) Tangent X
+        file.write(self.toBigF(n0.y))                  # (4f) Tangent Y
+        file.write(self.toBigF(n1.x))                  # (4f) Bitangent X
+        file.write(self.toBigF(n1.y))                  # (4f) Bitangent Y
 
 def menu_func_export(self, context):
     self.layout.operator(SMBLZExporter.bl_idname, text="SMB LZ (.lz)")
