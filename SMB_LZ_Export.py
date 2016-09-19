@@ -204,7 +204,7 @@ class SMBLZExporter(bpy.types.Operator):
             
     def writeFalloutPlane(self, file):
         self.falloutPlaneOffset = file.tell()
-        file.write(self.toBigI(self.falloutPlaneY))             # (4i) Fallout Y coordinate
+        file.write(self.toBigF(self.falloutPlaneY))             # (4i) Fallout Y coordinate
         
     def writeGoals(self, file):
         """Writes the goals into the lz"""
@@ -215,7 +215,6 @@ class SMBLZExporter(bpy.types.Operator):
         
         # Go through goal objects and write them in
         for obj in self.goalObjects:
-            print(obj.rotation_euler)
             file.write(self.toBigF(obj.location.x))             # (4f) X location
             file.write(self.toBigF(obj.location.z))             # (4f) Y location
             file.write(self.toBigF(obj.location.y))             # (4f) Z location
@@ -301,7 +300,9 @@ class SMBLZExporter(bpy.types.Operator):
     def writeobjectNames(self, file):
         """Write the model names into the file"""
         
-
+        alignment = file.tell() % 4
+        if alignment != 0:
+            self.writeZeroBytes(file, 4 - alignment)
         self.modelNamesOffset = file.tell()
         
         # Go through every standard level model and write their name in
@@ -313,7 +314,10 @@ class SMBLZExporter(bpy.types.Operator):
             nameBytes.extend(obj.name.encode())
             file.write(nameBytes)                               # (ascii) Model name
             self.writeZeroBytes(file, 1)                        # (1i) \0 Char
-            
+            alignment = file.tell() % 4;                        # Get number of bytes that would align the file
+            if alignment != 0:
+                self.writeZeroBytes(file, 4 - alignment)         
+                
         # Go through every background level model and write their name in
         for obj in self.backgroundModelObjects:
             # Add this name to the list of name offsets
@@ -323,6 +327,9 @@ class SMBLZExporter(bpy.types.Operator):
             nameBytes.extend(obj.name.encode())
             file.write(nameBytes)                               # (ascii) Model name
             self.writeZeroBytes(file, 1)                        # (1i) \0 Char
+            alignment = file.tell() % 4;                        # Get number of bytes that would align the file
+            if alignment != 0:
+                self.writeZeroBytes(file, 4 - alignment)        
             
         # Go through every reflective level model and write their name in
         for obj in self.reflectiveObjects:
@@ -333,7 +340,9 @@ class SMBLZExporter(bpy.types.Operator):
             nameBytes.extend(obj.name.encode())
             file.write(nameBytes)                               # (ascii) Model name
             self.writeZeroBytes(file, 1)                        # (1i) \0 Char
-            
+            alignment = file.tell() % 4;                        # Get number of bytes that would align the file
+            if alignment != 0:
+                self.writeZeroBytes(file, 4 - alignment)            
         
     def writeLevelModels(self, file):
         """Write the level model headers into the file"""
@@ -414,7 +423,7 @@ class SMBLZExporter(bpy.types.Operator):
                 vertices = []
                 # Collect the face's vertices
                 for vert in face.vertices:
-                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.z, obj.data.vertices[vert].co.y)))
                 # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
             
@@ -434,7 +443,7 @@ class SMBLZExporter(bpy.types.Operator):
                 vertices = []
                 # Collect the face's vertices
                 for vert in face.vertices:
-                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.y, obj.data.vertices[vert].co.z)))
+                    vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.z, obj.data.vertices[vert].co.y)))
                 # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
                 
@@ -451,6 +460,9 @@ class SMBLZExporter(bpy.types.Operator):
             for i in range(0, numTriangles):
                 file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
             file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
+            alignment = file.tell() % 4
+            if alignment != 0:
+                self.writeZeroBytes(file, 4 - alignment)
         
         # Go through every reflective level model and write its collision grid list
         for i in range(0, len(self.reflectiveObjects)):
@@ -462,6 +474,9 @@ class SMBLZExporter(bpy.types.Operator):
             for i in range(0, numTriangles):
                 file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
             file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
+            alignment = file.tell() % 4
+            if alignment != 0:
+                self.writeZeroBytes(file, 4 - alignment)
             
     def writeCollisionGridTrianglePointers(self, file):
         """Writes pointers to the triangle grid list"""
@@ -583,7 +598,7 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigI(1))                              # (4i) One
         file.write(self.toBigI(self.numberOfReflectiveObjects))                              # (4i) Number of reflective objects
         file.write(self.toBigI(self.reflectiveObjectsOffset))   # (4i) Offset to reflective objects
-        self.writeZeroBytes(file, 48)                           # (30i)Unknown
+        self.writeZeroBytes(file, 24)                           # (24i)Unknown
         
     
     def toBigI(self, number):
@@ -674,17 +689,7 @@ class SMBLZExporter(bpy.types.Operator):
         """Writes a triangle into the LZ"""
         """Mostly duplicated from Yoshimaster's original code"""
         from mathutils import Vector
-        
-        # Swap Y and Z positions (Blender has Z being up instead of Y)
-        temp = vertex[1]
-        vertex[1] = vertex[2]
-        vertex[2] = temp
-        temp = vertex2[1]
-        vertex2[1] = vertex2[2]
-        vertex2[2] = temp
-        temp = vertex3[1]
-        vertex3[1] = vertex3[2]
-        vertex3[2] = temp
+
         ba = Vector(((vertex2.x - vertex.x, vertex2.y - vertex.y, vertex2.z - vertex.z)))
         ca = Vector(((vertex3.x - vertex.x, vertex3.y - vertex.y, vertex3.z - vertex.z)))
         
