@@ -201,13 +201,14 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.z))))     # (2i) Y rotation
             file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.y))))     # (2i) Z rotation
             self.writeZeroBytes(file, 2)                        # (2i) Zero
-            
+                        
     def writeFalloutPlane(self, file):
         self.falloutPlaneOffset = file.tell()
         file.write(self.toBigF(self.falloutPlaneY))             # (4i) Fallout Y coordinate
         
     def writeGoals(self, file):
         """Writes the goals into the lz"""
+        
         if self.numberOfGoals == 0:
             return
         
@@ -524,10 +525,14 @@ class SMBLZExporter(bpy.types.Operator):
     def writeCollisionFields(self, file):
         """Write the collision field headers into the LZ"""
         
+        self.numberOfCollisionFields = self.numberOfLevelModels + self.numberOfReflectiveObjects
+
+        if self.numberOfCollisionFields == 0:
+            return
+        
         # Save where the collision fields offset is
         self.collisionFieldsOffset = file.tell()
         
-        self.numberOfCollisionFields = self.numberOfLevelModels + self.numberOfReflectiveObjects
         
         # Go through every standard level model and write its collision header
         for i in range(0, len(self.levelModelObjects)):
@@ -637,6 +642,8 @@ class SMBLZExporter(bpy.types.Operator):
         return Vector((-v.y, v.x, 0.0))
         
     def toDegrees(self, theta):
+        if math.isnan(theta):
+            theta = 0
         return 57.2957795130824*theta
         
     def cnvAngle(self, theta):
