@@ -357,9 +357,10 @@ class SMBLZExporter(bpy.types.Operator):
         
         # Go through every standard level model and write its header
         for i in range(0, len(self.levelModelNameOffsets)):
-            # Add the offset the list of pointers to level name asciis
-            self.levelModelNamePointerOffsets.append(file.tell())   
+   
             file.write(self.toBigI(1))                                      # (4i) Zero
+            # Add the offset the list of pointers to level name asciis
+            self.levelModelNamePointerOffsets.append(file.tell())
             file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
                  
@@ -389,9 +390,9 @@ class SMBLZExporter(bpy.types.Operator):
         # Go through every standard level model and write its header
         for i in range(0, len(self.backgroundModelNameOffsets)):
             obj = self.backgroundModelObjects[i]
+            file.write(self.toBigI(31))                                     # (31i)0x1F
             # Add the offset the list of pointers to level name asciis
             self.backgroundModelNamePointerOffsets.append(file.tell())
-            file.write(self.toBigI(31))                                     # (31i)0x1F
             file.write(self.toBigI(self.backgroundModelNameOffsets[i]))     # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
             file.write(self.toBigF(obj.location.x))                         # (4f) X location
@@ -489,13 +490,15 @@ class SMBLZExporter(bpy.types.Operator):
         for i in range(0, len(self.levelModelObjects)):
             # Add this offset to the collision grid pointers list
             self.levelModelCollisionGridPointerPointers.append(file.tell())
-            file.write(self.toBigI(self.levelModelCollisionGridPointers[i]))
+            for j in range(0, 255):
+                file.write(self.toBigI(self.levelModelCollisionGridPointers[i]))
             
         # Go through every reflective level model and write its collision grid list
         for i in range(0, len(self.reflectiveObjects)):
             # Add this offset to the collision grid pointers list
             self.reflectiveObjectCollisionGridPointerPointers.append(file.tell())
-            file.write(self.toBigI(self.reflectiveObjectCollisionGridPointers[i]))
+            for j in range(0, 255):
+                file.write(self.toBigI(self.reflectiveObjectCollisionGridPointers[i]))
 
 
     def writeAnimationFrameHeaders(self, file):
@@ -547,14 +550,14 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.z))))                         # (2i) Y rotation for animation
             file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.y))))                         # (2i) Z rotation for animation
             self.writeZeroBytes(file, 2)                                            # (2i) Zero
-            file.write(self.toBigI(self.levelModelAnimationFrameOffsets[i]))        # (4i) Offset to animation frame header
+            file.write(self.toBigI(0))        # (4i) Offset to animation frame header
             file.write(self.toBigI(self.levelModelNamePointerOffsets[i]))           # (4i) Offset to level model name pointer
             file.write(self.toBigI(self.levelModelTriangleOffsets[i]))              # (4i) Offset to triangle colliders
             file.write(self.toBigI(self.levelModelCollisionGridPointerPointers[i])) # (4i) Offset to collision grid list pointers
-            file.write(self.toBigF(-200))                                              # (4i) Start X value for collision grid
-            file.write(self.toBigF(-200))                                              # (4i) Start Z value for collision grid
-            file.write(self.toBigF(400))                                              # (4i) Step X value for collision grid
-            file.write(self.toBigF(400))                                              # (4i) Step X value for collision grid
+            file.write(self.toBigF(-256))                                              # (4i) Start X value for collision grid
+            file.write(self.toBigF(-256))                                              # (4i) Start Z value for collision grid
+            file.write(self.toBigF(32))                                              # (4i) Step X value for collision grid
+            file.write(self.toBigF(32))                                              # (4i) Step X value for collision grid
             file.write(self.toBigI(16))                                             # (4i) 16
             file.write(self.toBigI(16))                                             # (4i) 16
             self.writePartialHeader(file)                                           # (136)Partial Header
@@ -573,10 +576,10 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigI(self.reflectiveObjectNamePointerOffsets[i]))             # (4i) Offset to level model name pointer
             file.write(self.toBigI(self.reflectiveObjectTriangleOffsets[i]))                # (4i) Offset to triangle colliders
             file.write(self.toBigI(self.reflectiveObjectCollisionGridPointerPointers[i]))   # (4i) Offset to collision grid list pointers
-            file.write(self.toBigF(-100))                                                   # (4i) Start X value for collision grid
-            file.write(self.toBigF(-100))                                                   # (4i) Start Z value for collision grid
-            file.write(self.toBigF(200))                                                    # (4i) Step X value for collision grid
-            file.write(self.toBigF(200))                                                    # (4i) Step X value for collision grid
+            file.write(self.toBigF(-256))                                                   # (4i) Start X value for collision grid
+            file.write(self.toBigF(-256))                                                   # (4i) Start Z value for collision grid
+            file.write(self.toBigF(32))                                                    # (4i) Step X value for collision grid
+            file.write(self.toBigF(32))                                                    # (4i) Step X value for collision grid
             file.write(self.toBigI(16))                                                     # (4i) 16
             file.write(self.toBigI(16))                                                     # (4i) 16
             self.writePartialHeader(file)                                                   # (136)Partial Header
