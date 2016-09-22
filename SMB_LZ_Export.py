@@ -73,15 +73,16 @@ class SMBLZExporter(bpy.types.Operator):
     reflectiveObjectCollisionGridPointerPointers = []   # List of pointer offsets to the collision grid pointers
     modelNamesOffset = 0                                # Offset to model names
     
-    filename_ext = ".lz"
+    filename_ext = ".lz.raw"
     filter_glob = StringProperty(
-            default="*.lz",
+            default="*.lz.raw",
             options={'HIDDEN'},
             )
 
 
     def execute(self, context):        # execute() is called by blender when running the operator.
         """Called when the addon is run after selecting a save file"""
+        self.clearData()
         
         scene = context.scene
         # Go through each object in the scene and put it into its related list
@@ -114,6 +115,7 @@ class SMBLZExporter(bpy.types.Operator):
         self.numberOfReflectiveObjects = len(self.reflectiveObjects)
         # Begin writing the LZ file
         self.writeLZ(context)
+        self.clearData()
         return {'FINISHED'}            # this lets blender know the operator finished successfully.
         
     def invoke(self, context, event):
@@ -140,7 +142,7 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeAnimationFrameHeaders(file)
             self.writeCollisionFields(file)
             self.writeHeader(file)
-    
+                
     def writeZeroBytes(self, file, numZeros):
         """Writes a set number of 0 bytes to a file"""
         byteArray = []
@@ -355,9 +357,9 @@ class SMBLZExporter(bpy.types.Operator):
         
         # Go through every standard level model and write its header
         for i in range(0, len(self.levelModelNameOffsets)):
-            file.write(self.toBigI(1))                                      # (4i) Zero
             # Add the offset the list of pointers to level name asciis
             self.levelModelNamePointerOffsets.append(file.tell())   
+            file.write(self.toBigI(1))                                      # (4i) Zero
             file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
                  
@@ -387,9 +389,9 @@ class SMBLZExporter(bpy.types.Operator):
         # Go through every standard level model and write its header
         for i in range(0, len(self.backgroundModelNameOffsets)):
             obj = self.backgroundModelObjects[i]
-            file.write(self.toBigI(31))                                     # (31i)0x1F
             # Add the offset the list of pointers to level name asciis
             self.backgroundModelNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(31))                                     # (31i)0x1F
             file.write(self.toBigI(self.backgroundModelNameOffsets[i]))     # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
             file.write(self.toBigF(obj.location.x))                         # (4f) X location
@@ -447,6 +449,7 @@ class SMBLZExporter(bpy.types.Operator):
                     vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.z, obj.data.vertices[vert].co.y)))
                 # Write the triangle to the LZ
                 self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
+            
                 
     def writeCollisionGridTriangleList(self, file):
         """Writes the list of triangles used for each objects collider"""
@@ -757,9 +760,57 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigF(n0.y))                  # (4f) Tangent Y
         file.write(self.toBigF(n1.x))                  # (4f) Bitangent X
         file.write(self.toBigF(n1.y))                  # (4f) Bitangent Y
+        
+    def clearData(self):
+        self.startPositionObjects = []                           # list of start position objects
+        self.numberOfCollisionFields = 0;                        # Number of collision fields/headers
+        self.collisionFieldsOffset = 0                           # Offset to collision fields/headers
+        self.sizeOfHeader = 160                                  # Size of file header (always 0xA0 (160)
+        self.falloutPlaneOffset = 0                              # Offset to fallout plane value
+        self.falloutPlaneY = 0                                   # Fallout plane value
+        self.numberOfGoals = 0                                   # Number of goals
+        self.goalsOffset = 0                                     # Offset to goals
+        self.goalObjects = []                                    # List of goal objects
+        self.numberOfBumpers = 0                                 # Number of bumpers
+        self.bumpersOffset = 0                                   # Offset to bumpers
+        self.bumperObjects = []                                  # List of bumper objects
+        self.numberOfJamabars = 0                                # Number of jamabars
+        self.jamabarOffset = 0                                   # Offset to jamabars
+        self.jamabarObjects = []                                 # List of jamabar objects
+        self.numberOfBananas = 0                                 # Number of bananas
+        self.bananasOffset = 0                                   # Offset to bananas
+        self.bananaObjects = []                                  # List of banana objects
+        self.numberOfLevelModels = 0                             # Number of level models
+        self.levelModelsOffset = 0                               # Offset to level models
+        self.levelModelObjects = []                              # List of level model objects
+        self.levelModelNameOffsets = []                          # List of offsets to level model name asciis
+        self.levelModelNamePointerOffsets = []                   # List of offsets to the level model name ascii offsets
+        self.levelModelAnimationFrameOffsets = []                # List of animation frame offsets
+        self.levelModelTriangleOffsets = []                      # List of triangle collider offsets
+        self.levelModelCollisionGridPointers = []                # List of collision grid pointer offsets
+        self.numberOfLevelModelTriangles = []                    # List of the number of level model triangles
+        self.levelModelCollisionGridPointerPointers = []         # List of pointer offsets to the collision grid pointer
+        self.numberOfBackgroundModels = 0                        # Number of background models
+        self.backgroundModelsOffset = 0                          # Offset to background models
+        self.backgroundModelObjects = []                         # List of background model offsets
+        self.backgroundModelNameOffsets = []                     # List of offsets to model name asciis
+        self.backgroundModelNamePointerOffsets = []              # List of offsets to model name ascii offsets
+        self.backgroundModelCollisionGridPointerPointers = []    # List of pointer offsets to the collision grid pointers
+        self.numberOfReflectiveObjects = 0                       # Number of Reflective objects
+        self.reflectiveObjectsOffset = 0                         # Offset to reflective objects
+        self.reflectiveObjects = []                              # List of reflective objects
+        self.reflectiveObjectNameOffsets = []                    # List of offsets to model name asciis
+        self.reflectiveObjectNamePointerOffsets = []             # List of offsets to the model name ascii offsets
+        self.reflectiveObjectAnimationFrameOffsets = []          # List of animation frame offsets
+        self.reflectiveObjectTriangleOffsets = []                # List of triangle collider offsets
+        self.reflectiveObjectCollisionGridPointers = []          # List of collision grid pointer offsets
+        self.numberOfReflectiveObjectTriangles = []              # List of the number of model triangles
+        self.reflectiveObjectCollisionGridPointerPointers = []   # List of pointer offsets to the collision grid pointers
+        self.modelNamesOffset = 0                                # Offset to model names
+        
 
 def menu_func_export(self, context):
-    self.layout.operator(SMBLZExporter.bl_idname, text="SMB LZ (.lz)")
+    self.layout.operator(SMBLZExporter.bl_idname, text="SMB LZ (.lz.raw)")
 
 
 def register():
