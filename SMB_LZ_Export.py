@@ -31,7 +31,7 @@ class SMBLZExporter(bpy.types.Operator):
     numberOfCollisionFields = 0;                        # Number of collision fields/headers
     collisionFieldsOffset = 0                           # Offset to collision fields/headers
     sizeOfHeader = 160                                  # Size of file header (always 0xA0 (160)
-    falloutPlaneOffset = 0                              # Offset to fallout plane value
+    falloutPlaneOffset = -20                              # Offset to fallout plane value
     falloutPlaneY = 0                                   # Fallout plane value
     numberOfGoals = 0                                   # Number of goals
     goalsOffset = 0                                     # Offset to goals
@@ -462,9 +462,10 @@ class SMBLZExporter(bpy.types.Operator):
             
             numTriangles = self.numberOfLevelModelTriangles[i]
             # Triangles are ordered, so just writing 0-numTriangles
-            for i in range(0, numTriangles):
-                file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
-            file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
+            for j in range(0, 256):
+                for i in range(0, numTriangles):
+                    file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
+                file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
             alignment = file.tell() % 4
             if alignment != 0:
                 self.writeZeroBytes(file, 4 - alignment)
@@ -476,9 +477,10 @@ class SMBLZExporter(bpy.types.Operator):
             
             numTriangles = self.numberOfReflectiveObjectTriangles[i]
             # Triangles are ordered, so just writing 0-numTriangles
-            for i in range(0, numTriangles):
-                file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
-            file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
+            for j in range(0, 256):
+                for i in range(0, numTriangles):
+                    file.write(self.toShortI(i))                    # (2i) Offset to collision triangle in list
+                file.write(self.toShortI(65535))                    # (2i) Triangle List terminator
             alignment = file.tell() % 4
             if alignment != 0:
                 self.writeZeroBytes(file, 4 - alignment)
@@ -488,17 +490,19 @@ class SMBLZExporter(bpy.types.Operator):
                 
         # Go through every standard level model and write its collision grid list pointer
         for i in range(0, len(self.levelModelObjects)):
+            numTriangles = self.numberOfLevelModelTriangles[i]
             # Add this offset to the collision grid pointers list
             self.levelModelCollisionGridPointerPointers.append(file.tell())
             for j in range(0, 255):
-                file.write(self.toBigI(self.levelModelCollisionGridPointers[i]))
+                file.write(self.toBigI(self.levelModelCollisionGridPointers[i] + (j * (2 + (2 * numTriangles)))))
             
         # Go through every reflective level model and write its collision grid list
         for i in range(0, len(self.reflectiveObjects)):
+            numTriangles = self.numberOfReflectiveObjectTriangles[i]
             # Add this offset to the collision grid pointers list
             self.reflectiveObjectCollisionGridPointerPointers.append(file.tell())
             for j in range(0, 255):
-                file.write(self.toBigI(self.reflectiveObjectCollisionGridPointers[i]))
+                file.write(self.toBigI(self.reflectiveObjectCollisionGridPointers[i]+ (j * (2 + (2 * numTriangles)))))
 
 
     def writeAnimationFrameHeaders(self, file):
