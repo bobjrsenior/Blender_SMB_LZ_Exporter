@@ -133,6 +133,7 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeJamabars(file)
             self.writeBananas(file)
             self.writeobjectNames(file)
+            self.writeLevelNameOffsets(file)
             self.writeLevelModels(file)
             self.writeReflectiveModels(file)
             self.writeBackgroundModels(file)
@@ -347,6 +348,25 @@ class SMBLZExporter(bpy.types.Operator):
             if alignment != 0:
                 self.writeZeroBytes(file, 4 - alignment)            
         
+    def writeLevelNameOffsets(self, file):
+        # Go through every standard level model and write its header
+        for i in range(0, len(self.levelModelNameOffsets)):
+            # Add the offset the list of pointers to level name asciis
+            self.levelModelNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
+    
+        # Go through every standard level model and write its header
+        for i in range(0, len(self.reflectiveObjectNameOffsets)):
+            # Add the offset the list of pointers to level name asciis
+            self.reflectiveObjectNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))    # (4i) Offset to model name ascii   
+    
+        # Go through every standard level model and write its header
+        for i in range(0, len(self.backgroundModelNameOffsets)):
+            # Add the offset the list of pointers to level name asciis
+            self.backgroundModelNamePointerOffsets.append(file.tell())
+            file.write(self.toBigI(self.backgroundModelNameOffsets[i]))  
+        
     def writeLevelModels(self, file):
         """Write the level model headers into the file"""
         
@@ -359,8 +379,6 @@ class SMBLZExporter(bpy.types.Operator):
         for i in range(0, len(self.levelModelNameOffsets)):
    
             file.write(self.toBigI(1))                                      # (4i) Zero
-            # Add the offset the list of pointers to level name asciis
-            self.levelModelNamePointerOffsets.append(file.tell())
             file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
                  
@@ -374,7 +392,6 @@ class SMBLZExporter(bpy.types.Operator):
         self.reflectiveObjectsOffset = file.tell()
         # Go through every standard level model and write its header
         for i in range(0, len(self.reflectiveObjectNameOffsets)):
-            self.reflectiveObjectNamePointerOffsets.append(file.tell())
             # Add the offset the list of pointers to level name asciis
             file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))    # (4i) Offset to model name ascii   
             file.write(self.toBigI(0))                                      # (4i) Zero
@@ -391,8 +408,6 @@ class SMBLZExporter(bpy.types.Operator):
         for i in range(0, len(self.backgroundModelNameOffsets)):
             obj = self.backgroundModelObjects[i]
             file.write(self.toBigI(31))                                     # (31i)0x1F
-            # Add the offset the list of pointers to level name asciis
-            self.backgroundModelNamePointerOffsets.append(file.tell())
             file.write(self.toBigI(self.backgroundModelNameOffsets[i]))     # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
             file.write(self.toBigF(obj.location.x))                         # (4f) X location
