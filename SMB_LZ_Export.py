@@ -562,12 +562,12 @@ class SMBLZExporter(bpy.types.Operator):
         # Go through every standard level model and write its collision header
         for i in range(0, len(self.levelModelObjects)):
             obj = self.levelModelObjects[i]
-            file.write(self.toBigF(obj.location.x))                                 # (4f) X center for animation
-            file.write(self.toBigF(obj.location.z))                                 # (4f) Y center for animation
-            file.write(self.toBigF(obj.location.y))                                 # (4f) Z center for animation
-            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.x))))                         # (2i) X rotation for animation
-            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.z))))                         # (2i) Y rotation for animation
-            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.y))))                         # (2i) Z rotation for animation
+            file.write(self.toBigF(0))#obj.location.x))                                 # (4f) X center for animation
+            file.write(self.toBigF(0))#obj.location.z))                                 # (4f) Y center for animation
+            file.write(self.toBigF(0))#obj.location.y))                                 # (4f) Z center for animation
+            file.write(self.toShortI(0))#self.cnvAngle(self.toDegrees(obj.rotation_euler.x))))                         # (2i) X rotation for animation
+            file.write(self.toShortI(0))#self.cnvAngle(self.toDegrees(obj.rotation_euler.z))))                         # (2i) Y rotation for animation
+            file.write(self.toShortI(0))#self.cnvAngle(self.toDegrees(obj.rotation_euler.y))))                         # (2i) Z rotation for animation
             self.writeZeroBytes(file, 2)                                            # (2i) Zero
             file.write(self.toBigI(0))        # (4i) Offset to animation frame header
             file.write(self.toBigI(self.levelModelNamePointerOffsets[i]))           # (4i) Offset to level model name pointer
