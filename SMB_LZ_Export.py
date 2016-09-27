@@ -31,7 +31,7 @@ class SMBLZExporter(bpy.types.Operator):
     numberOfCollisionFields = 0;                        # Number of collision fields/headers
     collisionFieldsOffset = 0                           # Offset to collision fields/headers
     sizeOfHeader = 160                                  # Size of file header (always 0xA0 (160)
-    falloutPlaneOffset = -20                              # Offset to fallout plane value
+    falloutPlaneOffset = -16                              # Offset to fallout plane value
     falloutPlaneY = 0                                   # Fallout plane value
     numberOfGoals = 0                                   # Number of goals
     goalsOffset = 0                                     # Offset to goals
@@ -140,9 +140,11 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeCollisionTriangles(file, context)
             self.writeCollisionGridTriangleList(file)
             self.writeCollisionGridTrianglePointers(file)
-            self.writeAnimationFrameHeaders(file)
+            #self.writeAnimationFrameHeaders(file)
             self.writeCollisionFields(file)
+            self.writeZeroBytes(file, 48)
             self.writeHeader(file)
+            
                 
     def writeZeroBytes(self, file, numZeros):
         """Writes a set number of 0 bytes to a file"""
@@ -308,7 +310,7 @@ class SMBLZExporter(bpy.types.Operator):
         if alignment != 0:
             self.writeZeroBytes(file, 4 - alignment)
         self.modelNamesOffset = file.tell()
-        
+
         # Go through every standard level model and write their name in
         for obj in self.levelModelObjects:
             # Add this name to the list of name offsets
@@ -374,11 +376,11 @@ class SMBLZExporter(bpy.types.Operator):
             return
         
         self.levelModelsOffset = file.tell()
-        
         # Go through every standard level model and write its header
         for i in range(0, len(self.levelModelNameOffsets)):
    
             file.write(self.toBigI(1))                                      # (4i) Zero
+            print(self.levelModelNameOffsets[i])
             file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
                  
@@ -508,7 +510,7 @@ class SMBLZExporter(bpy.types.Operator):
             numTriangles = self.numberOfLevelModelTriangles[i]
             # Add this offset to the collision grid pointers list
             self.levelModelCollisionGridPointerPointers.append(file.tell())
-            for j in range(0, 255):
+            for j in range(0, 256):
                 file.write(self.toBigI(self.levelModelCollisionGridPointers[i] + (j * (2 + (2 * numTriangles)))))
             
         # Go through every reflective level model and write its collision grid list
@@ -516,7 +518,7 @@ class SMBLZExporter(bpy.types.Operator):
             numTriangles = self.numberOfReflectiveObjectTriangles[i]
             # Add this offset to the collision grid pointers list
             self.reflectiveObjectCollisionGridPointerPointers.append(file.tell())
-            for j in range(0, 255):
+            for j in range(0, 256):
                 file.write(self.toBigI(self.reflectiveObjectCollisionGridPointers[i]+ (j * (2 + (2 * numTriangles)))))
 
 
@@ -579,7 +581,7 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(32))                                              # (4i) Step X value for collision grid
             file.write(self.toBigI(16))                                             # (4i) 16
             file.write(self.toBigI(16))                                             # (4i) 16
-            self.writePartialHeader(file)                                           # (136)Partial Header
+            self.writePartialHeader(file, i)                                           # (136)Partial Header
             
         # Go through every reflective level model and write its collision header
         for i in range(0, len(self.reflectiveObjects)):
@@ -601,19 +603,19 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(32))                                                    # (4i) Step X value for collision grid
             file.write(self.toBigI(16))                                                     # (4i) 16
             file.write(self.toBigI(16))                                                     # (4i) 16
-            self.writePartialHeader(file)                                                   # (136)Partial Header
+            self.writePartialHeader(file, i)                                                   # (136)Partial Header
             
-    def writePartialHeader(self, file):
-        file.write(self.toBigI(self.numberOfGoals))             # (4i) Number of goals
-        file.write(self.toBigI(self.goalsOffset))               # (4i) Offset to goals
-        file.write(self.toBigI(self.numberOfGoals));            # (4i) Number of goals
+    def writePartialHeader(self, file, index):
+        file.write(self.toBigI(0))             # (4i) Number of goals
+        file.write(self.toBigI(0))               # (4i) Offset to goals
+        file.write(self.toBigI(0));            # (4i) Number of goals
         self.writeZeroBytes(file, 4)                            # (4i) Zero
-        file.write(self.toBigI(self.numberOfBumpers))           # (4i) Number of bumpers
-        file.write(self.toBigI(self.bumpersOffset))             # (4i) Offset to bumpers
-        file.write(self.toBigI(self.numberOfJamabars))          # (4i) Number of jamabars
-        file.write(self.toBigI(self.jamabarOffset))             # (4i) Offset to jamabars
-        file.write(self.toBigI(self.numberOfBananas))           # (4i) Number of bananas
-        file.write(self.toBigI(self.bananasOffset))             # (4i) Offset to bananas
+        file.write(self.toBigI(0))           # (4i) Number of bumpers
+        file.write(self.toBigI(0))             # (4i) Offset to bumpers
+        file.write(self.toBigI(0))          # (4i) Number of jamabars
+        file.write(self.toBigI(0))             # (4i) Offset to jamabars
+        file.write(self.toBigI(0))           # (4i) Number of bananas
+        file.write(self.toBigI(0))             # (4i) Offset to bananas
         self.writeZeroBytes(file, 16)                           # (10i)Zero
         file.write(self.toBigI(0))                              # (4i) Number of something?
         file.write(self.toBigI(0))                              # (4i) Offset to something?
@@ -625,9 +627,9 @@ class SMBLZExporter(bpy.types.Operator):
         file.write(self.toBigI(0))                              # (4i) Number of something?
         file.write(self.toBigI(0))                              # (4i) Offset to something
         file.write(self.toBigI(0))                              # (4i) Zero
-        file.write(self.toBigI(1))                              # (4i) One
-        file.write(self.toBigI(self.numberOfReflectiveObjects))                              # (4i) Number of reflective objects
-        file.write(self.toBigI(self.reflectiveObjectsOffset))   # (4i) Offset to reflective objects
+        file.write(self.toBigI(0))                              # (4i) One
+        file.write(self.toBigI(0))                              # (4i) Number of reflective objects
+        file.write(self.toBigI(0))   # (4i) Offset to reflective objects
         self.writeZeroBytes(file, 24)                           # (24i)Unknown
         
     
