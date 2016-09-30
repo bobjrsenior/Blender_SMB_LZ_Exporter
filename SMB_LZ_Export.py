@@ -33,7 +33,7 @@ class SMBLZExporter(bpy.types.Operator):
     sizeOfHeader = 160                                  # Size of file header (always 0xA0 (160)
 
     falloutPlaneOffset = 0                              # Offset to fallout plane value
-    falloutPlaneY = -16                                   # Fallout plane value
+    falloutPlaneY = -32                                   # Fallout plane value
     numberOfGoals = 0                                   # Number of goals
     goalsOffset = 0                                     # Offset to goals
     goalObjects = []                                    # List of goal objects
@@ -73,6 +73,7 @@ class SMBLZExporter(bpy.types.Operator):
     numberOfReflectiveObjectTriangles = []              # List of the number of model triangles
     reflectiveObjectCollisionGridPointerPointers = []   # List of pointer offsets to the collision grid pointers
     modelNamesOffset = 0                                # Offset to model names
+    offsetToModelNamePointers = 0
     
     filename_ext = ".lz.raw"
     filter_glob = StringProperty(
@@ -128,23 +129,38 @@ class SMBLZExporter(bpy.types.Operator):
         with open(self.filepath, 'wb') as file:
             # Written in semi-reverse order so that all needed offsets are known by each method
             self.writeStartPositions(file)
+            
             self.writeFalloutPlane(file)
+            
             self.writeGoals(file)
             self.writeBumpers(file)
             self.writeJamabars(file)
             self.writeBananas(file)
-            self.writeobjectNames(file)
-            self.writeLevelNameOffsets(file)
-            self.writeLevelModels(file)
-            self.writeReflectiveModels(file)
-            self.writeBackgroundModels(file)
+            
+            self.collisionFieldSpacer(file)
+            
             self.writeCollisionTriangles(file, context)
             self.writeCollisionGridTriangleList(file)
             self.writeCollisionGridTrianglePointers(file)
+            
+            self.levelModelsSpacer(file)
+            self.reflectiveModelsSpacer(file)
+            self.backgroundModelsSpacer(file)
+            
+            
+            self.levelModelNameSpacer(file)
+            
+           
+            self.writeobjectNames(file)
+            self.writeLevelNameOffsets(file)
+
+            self.writeLevelModels(file)
+            
+            self.writeReflectiveModels(file)
+            self.writeBackgroundModels(file)
 
             #self.writeAnimationFrameHeaders(file)
             self.writeCollisionFields(file)
-            self.writeZeroBytes(file, 48)
             self.writeHeader(file)
             
                 
@@ -305,6 +321,20 @@ class SMBLZExporter(bpy.types.Operator):
                 file.write(self.toBigI(0))                      # (4i) Banana Type (Single/Nanner)
         
         
+    def collisionFieldSpacer(self, file):
+        """Pad space for the collision fields"""
+        
+        self.numberOfCollisionFields = self.numberOfLevelModels + self.numberOfReflectiveObjects
+
+        if self.numberOfCollisionFields == 0:
+            return
+        
+        # Save where the collision fields offset is
+        self.collisionFieldsOffset = file.tell()
+        file.seek(self.numberOfCollisionFields * 196, 1)           # (196x) Make space for each collision field/header
+        
+        
+    
     def writeobjectNames(self, file):
         """Write the model names into the file"""
         
@@ -352,7 +382,17 @@ class SMBLZExporter(bpy.types.Operator):
             if alignment != 0:
                 self.writeZeroBytes(file, 4 - alignment)            
         
+    def levelModelNameSpacer(self, file):
+        total = self.numberOfLevelModels + self.numberOfReflectiveObjects + self.numberOfBackgroundModels
+        if total == 0:
+            return
+        self.offsetToModelNamePointers = file.tell()
+        file.seek(4 * total, 1)
+        
+        
     def writeLevelNameOffsets(self, file):
+        savePos = file.tell()
+        file.seek(self.offsetToModelNamePointers, 0)
         # Go through every standard level model and write its header
         for i in range(0, len(self.levelModelNameOffsets)):
             # Add the offset the list of pointers to level name asciis
@@ -370,14 +410,30 @@ class SMBLZExporter(bpy.types.Operator):
             # Add the offset the list of pointers to level name asciis
             self.backgroundModelNamePointerOffsets.append(file.tell())
             file.write(self.toBigI(self.backgroundModelNameOffsets[i]))  
+        file.seek(savePos, 0)
         
+        
+    def levelModelsSpacer(self, file):
+        if self.numberOfLevelModels == 0:
+                return
+            
+        self.levelModelsOffset = file.tell()
+        
+        file.seek(4 * 3 * self.numberOfLevelModels, 1)
+        
+    
+    
     def writeLevelModels(self, file):
         """Write the level model headers into the file"""
         
         if self.numberOfLevelModels == 0:
             return
         
-        self.levelModelsOffset = file.tell()
+        savePos = file.tell()
+        
+        file.seek(self.levelModelsOffset, 0)
+        print(file.tell())
+        print(len(self.levelModelNameOffsets))
         # Go through every standard level model and write its header
         for i in range(0, len(self.levelModelNameOffsets)):
    
@@ -385,19 +441,42 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigI(self.levelModelNameOffsets[i]))          # (4i) Offset to model name ascii
             file.write(self.toBigI(0))                                      # (4i) Zero
                  
+        file.seek(savePos, 0)
+                 
+    def reflectiveModelsSpacer(self, file):
+        if self.numberOfReflectiveObjects == 0:
+            return
+        
+        # Save where the reflective level models headers start
+        self.reflectiveObjectsOffset = file.tell()
+        
+        file.seek(4 * 2 * self.numberOfReflectiveObjects, 1)
+    
     def writeReflectiveModels(self, file):
         """Write the reflective model headers into the file"""
         
         if self.numberOfReflectiveObjects == 0:
             return
         
-        # Save where the reflective level models headers start
-        self.reflectiveObjectsOffset = file.tell()
+        savePos = file.tell()
+        
+        file.seek(self.reflectiveObjectsOffset, 0)
         # Go through every standard level model and write its header
         for i in range(0, len(self.reflectiveObjectNameOffsets)):
             # Add the offset the list of pointers to level name asciis
             file.write(self.toBigI(self.reflectiveObjectNameOffsets[i]))    # (4i) Offset to model name ascii   
             file.write(self.toBigI(0))                                      # (4i) Zero
+    
+        file.seek(savePos, 0)
+    
+    def backgroundModelsSpacer(self, file):
+        if self.numberOfBackgroundModels == 0:
+            return
+        
+        # Save where the background level models headers start
+        self.backgroundModelsOffset = file.tell()
+        
+        file.seek(56 * self.numberOfBackgroundModels, 1)
     
     def writeBackgroundModels(self, file):
         """Write the background model headers into the file"""
@@ -405,8 +484,9 @@ class SMBLZExporter(bpy.types.Operator):
         if self.numberOfBackgroundModels == 0:
             return
         
-        # Save where the background level models headers start
-        self.backgroundModelsOffset = file.tell()
+        savePos = file.tell()
+        
+        file.seek(self.backgroundModelsOffset, 0)
         # Go through every standard level model and write its header
         for i in range(0, len(self.backgroundModelNameOffsets)):
             obj = self.backgroundModelObjects[i]
@@ -416,14 +496,16 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigF(obj.location.x))                         # (4f) X location
             file.write(self.toBigF(obj.location.z))                         # (4f) Y location
             file.write(self.toBigF(obj.location.y))                         # (4f) Z location
-            self.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.x))))                 # (2i) X rotation
-            self.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.z))))                 # (2i) Z rotation
-            self.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.y))))                 # (2i) Y rotation
+            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.x))))                 # (2i) X rotation
+            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.z))))                 # (2i) Z rotation
+            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.y))))                 # (2i) Y rotation
             self.writeZeroBytes(file, 2)                                    # (2i) Zero
             file.write(self.toBigF(obj.scale.x))                            # (4f) X scale
             file.write(self.toBigF(obj.scale.z))                            # (4f) Y scale
             file.write(self.toBigF(obj.scale.y))                            # (4f) Z scale
             self.writeZeroBytes(file, 12)                                   # (12i)Zero
+        
+        file.seek(savePos, 0)
         
     def writeCollisionTriangles(self, file, context):
         """Write the collision triangles into the LZ"""
@@ -555,14 +637,11 @@ class SMBLZExporter(bpy.types.Operator):
     def writeCollisionFields(self, file):
         """Write the collision field headers into the LZ"""
         
-        self.numberOfCollisionFields = self.numberOfLevelModels + self.numberOfReflectiveObjects
-
         if self.numberOfCollisionFields == 0:
             return
         
-        # Save where the collision fields offset is
-        self.collisionFieldsOffset = file.tell()
-        
+        savePos = file.tell()
+        file.seek(self.collisionFieldsOffset, 0)
         
         # Go through every standard level model and write its collision header
         for i in range(0, len(self.levelModelObjects)):
@@ -609,6 +688,8 @@ class SMBLZExporter(bpy.types.Operator):
             file.write(self.toBigI(16))                                                     # (4i) 16
 
             self.writePartialHeader(file, i)                                                   # (136)Partial Header
+            
+        file.seek(savePos, 0)
             
     def writePartialHeader(self, file, index):
         file.write(self.toBigI(0))             # (4i) Number of goals
@@ -674,8 +755,6 @@ class SMBLZExporter(bpy.types.Operator):
         return Vector((-v.y, v.x, 0.0))
         
     def toDegrees(self, theta):
-        if math.isnan(theta):
-            theta = 0
         return 57.2957795130824*theta
         
     def cnvAngle(self, theta):
@@ -796,7 +875,7 @@ class SMBLZExporter(bpy.types.Operator):
         self.collisionFieldsOffset = 0                           # Offset to collision fields/headers
         self.sizeOfHeader = 160                                  # Size of file header (always 0xA0 (160)
         self.falloutPlaneOffset = 0                              # Offset to fallout plane value
-        self.falloutPlaneY = 0                                   # Fallout plane value
+        self.falloutPlaneY = -32                                   # Fallout plane value
         self.numberOfGoals = 0                                   # Number of goals
         self.goalsOffset = 0                                     # Offset to goals
         self.goalObjects = []                                    # List of goal objects
@@ -836,6 +915,7 @@ class SMBLZExporter(bpy.types.Operator):
         self.numberOfReflectiveObjectTriangles = []              # List of the number of model triangles
         self.reflectiveObjectCollisionGridPointerPointers = []   # List of pointer offsets to the collision grid pointers
         self.modelNamesOffset = 0                                # Offset to model names
+        self.offsetToModelNamePointers = 0
         
 
 def menu_func_export(self, context):
