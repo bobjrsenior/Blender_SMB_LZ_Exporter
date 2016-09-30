@@ -137,6 +137,9 @@ class SMBLZExporter(bpy.types.Operator):
             self.writeJamabars(file)
             self.writeBananas(file)
             
+            self.levelModelNameSpacer(file)
+
+            
             self.collisionFieldSpacer(file)
             
             self.writeCollisionTriangles(file, context)
@@ -147,10 +150,6 @@ class SMBLZExporter(bpy.types.Operator):
             self.reflectiveModelsSpacer(file)
             self.backgroundModelsSpacer(file)
             
-            
-            self.levelModelNameSpacer(file)
-            
-           
             self.writeobjectNames(file)
             self.writeLevelNameOffsets(file)
 
@@ -341,7 +340,10 @@ class SMBLZExporter(bpy.types.Operator):
         alignment = file.tell() % 4
         if alignment != 0:
             self.writeZeroBytes(file, 4 - alignment)
+            
+        self.writeZeroBytes(file, 4)
         self.modelNamesOffset = file.tell()
+        
 
         # Go through every standard level model and write their name in
         for obj in self.levelModelObjects:
