@@ -434,8 +434,6 @@ class SMBLZExporter(bpy.types.Operator):
         savePos = file.tell()
         
         file.seek(self.levelModelsOffset, 0)
-        print(file.tell())
-        print(len(self.levelModelNameOffsets))
         # Go through every standard level model and write its header
         for i in range(0, len(self.levelModelNameOffsets)):
    
@@ -531,7 +529,7 @@ class SMBLZExporter(bpy.types.Operator):
                 for vert in face.vertices:
                     vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.z, obj.data.vertices[vert].co.y)))
                 # Write the triangle to the LZ
-                self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
+                self.writeTriangle(file, vertices[0], vertices[1], vertices[2], face.normal)
             
         # Go through every reflective level model and write its triangles
         for i in range(0, len(self.reflectiveObjects)):
@@ -551,7 +549,7 @@ class SMBLZExporter(bpy.types.Operator):
                 for vert in face.vertices:
                     vertices.append(Vector((obj.data.vertices[vert].co.x, obj.data.vertices[vert].co.z, obj.data.vertices[vert].co.y)))
                 # Write the triangle to the LZ
-                self.writeTriangle(file, vertices[0], vertices[1], vertices[2])
+                self.writeTriangle(file, vertices[0], vertices[1], vertices[2], face.normal)
             
                 
     def writeCollisionGridTriangleList(self, file):
@@ -671,14 +669,14 @@ class SMBLZExporter(bpy.types.Operator):
         # Go through every reflective level model and write its collision header
         for i in range(0, len(self.reflectiveObjects)):
             obj = self.reflectiveObjects[i]
-            file.write(self.toBigF(obj.location.x))                                         # (4f) X center for animation
-            file.write(self.toBigF(obj.location.z))                                         # (4f) Y center for animation
-            file.write(self.toBigF(obj.location.y))                                         # (4f) Z center for animation
-            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.x))))                                 # (2i) X rotation for animation
-            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.z))))                                 # (2i) Y rotation for animation
-            file.write(self.toShortI(self.cnvAngle(self.toDegrees(obj.rotation_euler.y))))                                 # (2i) Z rotation for animation
+            file.write(self.toBigF(0))                                         # (4f) X center for animation
+            file.write(self.toBigF(0))                                         # (4f) Y center for animation
+            file.write(self.toBigF(0))                                         # (4f) Z center for animation
+            file.write(self.toShortI(0))                                 # (2i) X rotation for animation
+            file.write(self.toShortI(0))                                 # (2i) Y rotation for animation
+            file.write(self.toShortI(0))                                 # (2i) Z rotation for animation
             self.writeZeroBytes(file, 2)                                                    # (2i) Zero
-            file.write(self.toBigI(self.reflectiveObjectAnimationFrameOffsets[i]))          # (4i) Offset to animation frame header
+            file.write(self.toBigI(0))          # (4i) Offset to animation frame header
             file.write(self.toBigI(self.reflectiveObjectNamePointerOffsets[i]))             # (4i) Offset to level model name pointer
             file.write(self.toBigI(self.reflectiveObjectTriangleOffsets[i]))                # (4i) Offset to triangle colliders
             file.write(self.toBigI(self.reflectiveObjectCollisionGridPointerPointers[i]))   # (4i) Offset to collision grid list pointers
@@ -805,15 +803,18 @@ class SMBLZExporter(bpy.types.Operator):
         bm.to_mesh(me)
         bm.free()
         
-    def writeTriangle(self, file, vertex, vertex2, vertex3):
+    def writeTriangle(self, file, vertex, vertex2, vertex3, normal):
         """Writes a triangle into the LZ"""
         """Mostly duplicated from Yoshimaster's original code"""
         from mathutils import Vector
-
+        
+        normal = Vector((normal.x, normal.z, normal.y))
+        
         ba = Vector(((vertex2.x - vertex.x, vertex2.y - vertex.y, vertex2.z - vertex.z)))
         ca = Vector(((vertex3.x - vertex.x, vertex3.y - vertex.y, vertex3.z - vertex.z)))
-        
+
         normal = self.normalize(self.cross(self.normalize(ba), self.normalize(ca)))
+        
         l = math.sqrt(normal.x * normal.x + normal.z * normal.z)
 
         if abs(l) < 0.001:
@@ -844,7 +845,7 @@ class SMBLZExporter(bpy.types.Operator):
         dotrzrxry = self.dotm(dotrxry, Rzr0, Rzr1, Rzr2)
         
         n0v = Vector((dotrzrxry.x - dotrz.x, dotrzrxry.y - dotrz.y, dotrzrxry.z - dotrz.z))
-        n1v = Vector((-dotrzrxry.y, -dotrzrxry.y, -dotrzrxry.z))
+        n1v = Vector((-dotrzrxry.x, -dotrzrxry.y, -dotrzrxry.z))
         n0 = self.normalize(self.hat(n0v))
         n1 = self.normalize(self.hat(n1v))
         
